@@ -1,51 +1,23 @@
-SecureDesk V0.4.4 — Audit log de segurança
-==========================================
+SecureDesk V0.4.5 - Input hardening, password policy and secrets
 
-Este patch deve ser aplicado sobre a V0.4.3 concluída.
-Esta etapa cria a migration 0012_add_security_audit_logs.
+Base expected: V0.4.4 security audit logging merged into main.
+No Alembic migration is added in this patch; head remains 0012_add_security_audit_logs.
 
-1. Confirme que a main está atualizada e crie a branch:
-   git checkout main
-   git pull origin main
-   git checkout -b security/audit-log
+Suggested workflow:
+  git checkout main
+  git pull origin main
+  git checkout -b security/input-hardening
 
-2. Extraia o conteúdo deste ZIP na raiz do SecureDesk, substituindo os arquivos existentes.
+Extract this patch at the SecureDesk repository root, replacing files when prompted.
 
-3. Recrie os containers sem remover volumes:
-   docker compose down
-   docker compose up --build -d
+Then validate:
+  docker compose down
+  docker compose up --build -d
+  docker compose exec api alembic current
+  docker compose exec api pytest -q
+  docker compose exec api ruff check .
 
-4. Confirme a migration:
-   docker compose exec api alembic current
+Expected Alembic head:
+  0012_add_security_audit_logs (head)
 
-   Esperado:
-   0012_add_security_audit_logs (head)
-
-5. Rode os testes:
-   docker compose exec api pytest -q
-
-   Esperado nesta versão:
-   140 passed
-
-6. Rode o lint:
-   docker compose exec api ruff check .
-
-   Esperado:
-   All checks passed!
-
-7. Se tudo estiver verde:
-   git add .
-   git commit -m "security: add security audit logging"
-   git push -u origin security/audit-log
-
-Principais controles adicionados:
-- tabela append-only pela API para eventos de segurança;
-- auditoria de criação de conta, login com sucesso/falha e logout;
-- auditoria de rate limit global e dos endpoints de autenticação;
-- registro de respostas 401/403 fora do login;
-- actor_id quando existe usuário autenticado;
-- IP, User-Agent, método, caminho, status e detalhes mínimos do evento;
-- senha e JWT Bearer bruto nunca são gravados no audit log;
-- GET /security/audit somente para ADMIN;
-- filtros por event_type, actor_id e status_code, com paginação;
-- logs de segurança permanecem separados do histórico funcional dos chamados.
+Do not use `docker compose down -v` unless you intentionally want to delete persistent data.

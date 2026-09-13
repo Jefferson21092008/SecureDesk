@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CategoryCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=2, max_length=80)
     description: str | None = Field(default=None, max_length=300)
 
@@ -25,6 +27,8 @@ class CategoryCreate(BaseModel):
 
 
 class CategoryUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=2, max_length=80)
     description: str | None = Field(default=None, max_length=300)
 

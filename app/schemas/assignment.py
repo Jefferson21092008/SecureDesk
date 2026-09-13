@@ -1,5 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TicketAssignmentUpdate(BaseModel):
-    agent_id: int | None
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: int | None = Field(default=None, ge=1)

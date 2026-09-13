@@ -1,8 +1,9 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.validation import reject_unsafe_text
 from app.models.ticket import TicketPriority, TicketStatus
 from app.services.sla import SLAStatus
 
@@ -20,11 +21,29 @@ class SortOrder(str, Enum):
 
 
 class TicketCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: str = Field(min_length=3, max_length=160)
     description: str = Field(min_length=3, max_length=5000)
     priority: TicketPriority = TicketPriority.MEDIUM
     category_id: int | None = Field(default=None, ge=1)
     department_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        value = reject_unsafe_text(value, field_name="Title")
+        if len(value) < 3:
+            raise ValueError("Title must contain at least 3 characters")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str) -> str:
+        value = reject_unsafe_text(value, field_name="Description", allow_newlines=True)
+        if len(value) < 3:
+            raise ValueError("Description must contain at least 3 characters")
+        return value
 
 
 class TicketRead(BaseModel):
@@ -55,6 +74,8 @@ class TicketPage(BaseModel):
 
 
 class TicketUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: str | None = Field(default=None, min_length=3, max_length=160)
     description: str | None = Field(default=None, min_length=3, max_length=5000)
     priority: TicketPriority | None = None
@@ -62,8 +83,30 @@ class TicketUpdate(BaseModel):
     category_id: int | None = Field(default=None, ge=1)
     department_id: int | None = Field(default=None, ge=1)
 
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = reject_unsafe_text(value, field_name="Title")
+        if len(value) < 3:
+            raise ValueError("Title must contain at least 3 characters")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = reject_unsafe_text(value, field_name="Description", allow_newlines=True)
+        if len(value) < 3:
+            raise ValueError("Description must contain at least 3 characters")
+        return value
+
     @model_validator(mode="after")
-    def reject_explicit_nulls(self) -> "TicketUpdate":
+    def validate_update(self) -> "TicketUpdate":
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
         null_fields = [
             field
             for field in self.model_fields_set
