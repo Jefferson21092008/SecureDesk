@@ -20,13 +20,15 @@ def _get_ticket(ticket_id: int, db: Session) -> Ticket:
     return ticket
 
 
-def _require_lifecycle_permission(ticket: Ticket, current_user: User) -> None:
+def _require_staff_role(current_user: User) -> None:
     if current_user.role == UserRole.USER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Users cannot close or reopen tickets",
         )
 
+
+def _require_lifecycle_permission(ticket: Ticket, current_user: User) -> None:
     if current_user.role == UserRole.AGENT and ticket.assigned_agent_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -40,6 +42,7 @@ def close_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Ticket:
+    _require_staff_role(current_user)
     ticket = _get_ticket(ticket_id, db)
     _require_lifecycle_permission(ticket, current_user)
 
@@ -74,6 +77,7 @@ def reopen_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Ticket:
+    _require_staff_role(current_user)
     ticket = _get_ticket(ticket_id, db)
     _require_lifecycle_permission(ticket, current_user)
 

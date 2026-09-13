@@ -62,7 +62,7 @@ def test_user_cannot_read_another_users_ticket(client: TestClient) -> None:
 
     response = client.get(f"/tickets/{ticket.json()['id']}", headers=auth(other_token))
 
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 def test_user_cannot_change_ticket_status(client: TestClient) -> None:
