@@ -11,6 +11,7 @@ Blocos concluídos até aqui:
 - histórico de criação e alterações dos chamados;
 - registro de quem realizou cada alteração;
 - atribuição e desatribuição de chamados para agentes;
+- fechamento e reabertura controlados de chamados;
 - autorização: `USER` só acessa dados dos próprios chamados; `AGENT` e `ADMIN` podem acessar qualquer chamado.
 
 Rotas adicionadas na V0.2:
@@ -19,7 +20,23 @@ Rotas adicionadas na V0.2:
 - `GET /tickets/{ticket_id}/comments`
 - `GET /tickets/{ticket_id}/history`
 - `PATCH /tickets/{ticket_id}/assignment`
+- `POST /tickets/{ticket_id}/close`
+- `POST /tickets/{ticket_id}/reopen`
 
+
+### Ciclo de vida do chamado
+
+O fechamento e a reabertura usam endpoints dedicados para manter o status e `closed_at` consistentes.
+
+Regras atuais:
+
+- `USER` não pode fechar ou reabrir chamados;
+- `AGENT` só pode fechar/reabrir chamados atribuídos a ele;
+- `ADMIN` pode fechar/reabrir qualquer chamado;
+- fechar um chamado já fechado retorna conflito;
+- reabrir um chamado que não está fechado retorna conflito;
+- `PATCH /tickets/{ticket_id}` não pode ser usado para contornar essas regras;
+- fechamento e reabertura são registrados no histórico com ator e transição de status.
 
 ### Atribuição para agentes
 
@@ -58,6 +75,8 @@ A evolução do banco segue migrations incrementais:
 0003_add_ticket_history
     ↓
 0004_add_ticket_assignment
+    ↓
+0005_ticket_lifecycle
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -157,7 +176,7 @@ docker compose down -v
 
 ## Evolução planejada
 
-- V0.2: comentários, histórico e atribuição para agente implementados; próximos blocos: fechamento/reabertura e consolidação do registro de ações.
+- V0.2: comentários, histórico, atribuição e ciclo de vida implementados; próximo bloco: consolidação do registro de ações.
 - V0.3: filtros, paginação, busca, ordenação, anexos, categorias, SLA e departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.

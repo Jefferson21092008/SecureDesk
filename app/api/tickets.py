@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
-from app.models.ticket import Ticket
+from app.models.ticket import Ticket, TicketStatus
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
 from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
@@ -87,6 +87,18 @@ def update_ticket(
         raise HTTPException(status_code=403, detail="Forbidden")
     if current_user.role == UserRole.USER and data.status is not None:
         raise HTTPException(status_code=403, detail="Users cannot change ticket status")
+
+    if data.status == TicketStatus.CLOSED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Use the close endpoint to close a ticket",
+        )
+
+    if ticket.status == TicketStatus.CLOSED and data.status is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Use the reopen endpoint before changing a closed ticket status",
+        )
 
     for field, value in data.model_dump(exclude_unset=True).items():
         old_value = getattr(ticket, field)
