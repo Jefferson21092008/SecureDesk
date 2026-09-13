@@ -4,6 +4,43 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.5 — Métricas (em andamento)
 
+### V0.5.2 — Métricas de SLA
+
+A segunda etapa de métricas adiciona um resumo específico de SLA para dashboards e acompanhamento operacional.
+
+Novo endpoint:
+
+```text
+GET /metrics/sla
+```
+
+A resposta separa tickets em `ON_TRACK`, `MET` e `BREACHED`, informa o recorte dos tickets fechados, calcula a taxa de cumprimento de SLA apenas sobre tickets fechados e retorna o tempo médio de resolução em horas:
+
+```json
+{
+  "scope": "GLOBAL",
+  "total": 4,
+  "by_sla_status": {
+    "on_track": 1,
+    "met": 1,
+    "breached": 2
+  },
+  "closed": {
+    "total": 2,
+    "met": 1,
+    "breached": 1,
+    "compliance_rate_percent": 50.0
+  },
+  "average_resolution_hours": 6.0
+}
+```
+
+A taxa de cumprimento usa apenas tickets fechados (`MET / closed.total`), de modo que um chamado aberto e atrasado aparece em `by_sla_status.breached`, mas não altera a taxa até ser encerrado. Quando não há tickets fechados, `compliance_rate_percent` e `average_resolution_hours` são `null`.
+
+O escopo continua consistente com o restante da API: `USER` recebe apenas os próprios chamados (`OWN`), enquanto `AGENT` e `ADMIN` recebem métricas globais (`GLOBAL`). As contagens e o tempo médio são agregados no banco. A consulta usa a função apropriada de duração para PostgreSQL e para o SQLite utilizado nos testes.
+
+Esta etapa não cria migration; o head do Alembic continua sendo `0012_add_security_audit_logs`.
+
 ### V0.5.1 — Overview de chamados
 
 A primeira etapa de métricas adiciona um resumo compacto para alimentar dashboards sem exigir que o cliente baixe e agregue todos os chamados.
