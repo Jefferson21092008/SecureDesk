@@ -33,10 +33,19 @@ class Ticket(Base):
     status: Mapped[TicketStatus] = mapped_column(default=TicketStatus.OPEN, index=True)
     priority: Mapped[TicketPriority] = mapped_column(default=TicketPriority.MEDIUM, index=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    assigned_agent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     owner: Mapped["User"] = relationship(
         back_populates="tickets",
         foreign_keys=[owner_id],
+    )
+    assigned_agent: Mapped["User | None"] = relationship(
+        back_populates="assigned_tickets",
+        foreign_keys=[assigned_agent_id],
     )
     comments: Mapped[list["Comment"]] = relationship(
         back_populates="ticket",

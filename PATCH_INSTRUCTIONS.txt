@@ -1,17 +1,48 @@
-SecureDesk V0.2 - Patch: Histórico de alterações
+SecureDesk — V0.2 / Bloco 3: atribuição de chamados a agentes
 
-1. Extraia o conteúdo deste ZIP diretamente na pasta raiz do SecureDesk.
-2. Confirme a substituição dos arquivos existentes quando o Windows perguntar.
-3. NÃO use `docker compose down -v`, pois queremos preservar o banco e evoluí-lo com Alembic.
-4. Execute:
+Pré-requisito:
+- projeto atual na migration 0003_add_ticket_history
+- estado atual já salvo no Git
 
-   docker compose down
-   docker compose up --build -d
-   docker compose exec api alembic current
-   docker compose exec api pytest -q
-   docker compose exec api ruff check .
+Arquivos deste patch:
+- README.md
+- app/main.py
+- app/api/assignment.py
+- app/models/ticket.py
+- app/models/user.py
+- app/schemas/assignment.py
+- app/schemas/ticket.py
+- alembic/versions/0004_add_ticket_assignment.py
+- tests/test_assignment.py
 
-A migration esperada no `alembic current` é:
-0003_add_ticket_history (head)
+Aplicação:
+1. Extraia o conteúdo deste ZIP na raiz da pasta SecureDesk.
+2. Permita substituir os arquivos existentes.
+3. NÃO use docker compose down -v.
 
-A suíte deve passar com 23 testes.
+Validação:
+  docker compose down
+  docker compose up --build -d
+  docker compose exec api alembic current
+  docker compose exec api pytest -q
+  docker compose exec api ruff check .
+
+Resultados esperados:
+- migration: 0004_add_ticket_assignment (head)
+- testes: 30 passed
+- Ruff: All checks passed!
+
+Nova rota:
+PATCH /tickets/{ticket_id}/assignment
+Body para atribuir:
+  {"agent_id": 2}
+Body para desatribuir:
+  {"agent_id": null}
+
+Regras:
+- USER não pode atribuir.
+- AGENT pode assumir para si e desatribuir apenas o que estiver com ele.
+- AGENT não pode atribuir a outro agente nem tomar ticket já atribuído a outro agente.
+- ADMIN pode atribuir, reatribuir e desatribuir.
+- destino precisa ter role AGENT.
+- mudanças de atribuição entram no histórico.

@@ -10,6 +10,7 @@ Blocos concluídos até aqui:
 - autoria e data/hora dos comentários;
 - histórico de criação e alterações dos chamados;
 - registro de quem realizou cada alteração;
+- atribuição e desatribuição de chamados para agentes;
 - autorização: `USER` só acessa dados dos próprios chamados; `AGENT` e `ADMIN` podem acessar qualquer chamado.
 
 Rotas adicionadas na V0.2:
@@ -17,6 +18,21 @@ Rotas adicionadas na V0.2:
 - `POST /tickets/{ticket_id}/comments`
 - `GET /tickets/{ticket_id}/comments`
 - `GET /tickets/{ticket_id}/history`
+- `PATCH /tickets/{ticket_id}/assignment`
+
+
+### Atribuição para agentes
+
+A atribuição usa um campo opcional `assigned_agent_id` no chamado.
+
+Regras atuais:
+
+- `USER` não pode atribuir chamados;
+- `AGENT` pode assumir um chamado para si e desatribuir um chamado que esteja atribuído a ele;
+- `AGENT` não pode atribuir chamados a outro agente nem tomar um chamado já atribuído a outro agente;
+- `ADMIN` pode atribuir, reatribuir e desatribuir chamados;
+- o destino da atribuição precisa ter papel `AGENT`;
+- atribuições, reatribuições e desatribuições entram no histórico do chamado.
 
 ### Histórico de alterações
 
@@ -40,6 +56,8 @@ A evolução do banco segue migrations incrementais:
 0002_add_comments
     ↓
 0003_add_ticket_history
+    ↓
+0004_add_ticket_assignment
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -139,7 +157,7 @@ docker compose down -v
 
 ## Evolução planejada
 
-- V0.2: comentários e histórico implementados; próximos blocos: atribuição para agente e fechamento/reabertura.
+- V0.2: comentários, histórico e atribuição para agente implementados; próximos blocos: fechamento/reabertura e consolidação do registro de ações.
 - V0.3: filtros, paginação, busca, ordenação, anexos, categorias, SLA e departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.

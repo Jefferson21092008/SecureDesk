@@ -16,6 +16,7 @@ class TicketRead(BaseModel):
     status: TicketStatus
     priority: TicketPriority
     owner_id: int
+    assigned_agent_id: int | None
 
     model_config = {"from_attributes": True}
 
