@@ -1,39 +1,38 @@
-SecureDesk V0.3.1 - Patch 0006: ticket querying
+SecureDesk V0.3.2 - Patch 0007: ticket categories
 
-Este patch inicia a V0.3 - Organizacao.
+Este patch adiciona categorias aos chamados.
 
 Inclui:
-- filtro por status;
-- filtro por prioridade;
-- busca case-insensitive em titulo e descricao;
-- paginacao com metadados;
-- ordenacao por created_at, id ou title;
-- limite maximo de 100 itens por pagina;
-- campo created_at nos chamados;
-- migration 0006_add_ticket_created_at;
-- testes de autorizacao para garantir que filtros/busca nao vazem chamados de outros usuarios.
+- entidade Category;
+- CRUD de categorias;
+- gerenciamento de categorias restrito a ADMIN;
+- category_id opcional nos chamados;
+- validacao de categoria ao criar/editar chamados;
+- remocao de categoria com category_id: null;
+- filtro category_id no GET /tickets;
+- historico automatico para mudancas de categoria;
+- protecao contra exclusao de categoria em uso;
+- migration 0007_add_ticket_categories;
+- 10 novos testes de autorizacao e regras de negocio.
 
-IMPORTANTE:
-GET /tickets agora retorna um objeto paginado no formato:
-{
-  "items": [...],
-  "page": 1,
-  "page_size": 20,
-  "total": 42,
-  "pages": 3
-}
-
-1. Extraia este patch na raiz do projeto SecureDesk, substituindo os arquivos existentes.
-2. Nao use docker compose down -v.
-3. Rode:
+1. Crie a branch:
+   git checkout -b feat/ticket-categories
+2. Extraia este patch na raiz do projeto SecureDesk, substituindo os arquivos existentes.
+3. Nao use docker compose down -v.
+4. Rode:
    docker compose down
    docker compose up --build -d
-4. Confira:
+5. Confira:
    docker compose exec api alembic current
    docker compose exec api pytest -q
    docker compose exec api ruff check .
 
 Esperado:
-- migration: 0006_add_ticket_created_at (head)
-- testes: 48 passed
+- migration: 0007_add_ticket_categories (head)
+- testes: 58 passed
 - Ruff: All checks passed!
+
+Se tudo estiver verde:
+   git add .
+   git commit -m "feat: add ticket categories"
+   git push -u origin feat/ticket-categories

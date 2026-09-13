@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 if TYPE_CHECKING:
+    from app.models.category import Category
     from app.models.comment import Comment
     from app.models.ticket_history import TicketHistory
     from app.models.user import User
@@ -41,6 +42,11 @@ class Ticket(Base):
         index=True,
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     assigned_agent_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -51,6 +57,7 @@ class Ticket(Base):
         back_populates="tickets",
         foreign_keys=[owner_id],
     )
+    category: Mapped["Category | None"] = relationship(back_populates="tickets")
     assigned_agent: Mapped["User | None"] = relationship(
         back_populates="assigned_tickets",
         foreign_keys=[assigned_agent_id],

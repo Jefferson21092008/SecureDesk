@@ -4,6 +4,33 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.3 — Organização (em desenvolvimento)
 
+### V0.3.2 — Categorias
+
+Os chamados podem ser classificados com uma categoria opcional por meio de `category_id`.
+
+Rotas de categorias:
+
+- `GET /categories` — qualquer usuário autenticado pode listar as categorias;
+- `GET /categories/{category_id}` — qualquer usuário autenticado pode consultar uma categoria;
+- `POST /categories` — somente `ADMIN`;
+- `PATCH /categories/{category_id}` — somente `ADMIN`;
+- `DELETE /categories/{category_id}` — somente `ADMIN`, e apenas quando a categoria não estiver em uso.
+
+Regras atuais:
+
+- nomes de categoria não podem se repetir, inclusive com diferença apenas de maiúsculas/minúsculas;
+- `USER` pode selecionar uma categoria existente ao criar ou editar os próprios chamados;
+- `category_id: null` remove a categoria de um chamado;
+- categorias inexistentes são rejeitadas antes de gravar o chamado;
+- mudanças de categoria entram no histórico do chamado;
+- `GET /tickets` aceita `category_id` como filtro.
+
+Exemplo:
+
+```text
+GET /tickets?category_id=2&page=1&page_size=20
+```
+
 ### V0.3.1 — Consulta de chamados
 
 O endpoint `GET /tickets` suporta filtros, busca, paginação e ordenação.
@@ -18,6 +45,7 @@ Parâmetros atuais:
 
 - `status`: `OPEN`, `IN_PROGRESS` ou `CLOSED`;
 - `priority`: `LOW`, `MEDIUM` ou `HIGH`;
+- `category_id`: identificador de uma categoria;
 - `search`: busca case-insensitive em título e descrição;
 - `page`: página, começando em 1;
 - `page_size`: quantidade por página, de 1 a 100;
@@ -110,6 +138,8 @@ A evolução atual do banco é:
 0005_ticket_lifecycle
     ↓
 0006_add_ticket_created_at
+    ↓
+0007_add_ticket_categories
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -210,7 +240,7 @@ docker compose down -v
 ## Evolução planejada
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
-- V0.3: consulta de chamados em andamento; próximos blocos: categorias, anexos, SLA e departamentos.
+- V0.3: consulta e categorias concluídas; próximos blocos: anexos, SLA e departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
+from app.models.category import Category
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
@@ -35,6 +36,9 @@ def create_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Ticket:
+    if data.category_id is not None and db.get(Category, data.category_id) is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
     ticket = Ticket(**data.model_dump(), owner_id=current_user.id)
     db.add(ticket)
     db.flush()
@@ -56,6 +60,7 @@ def create_ticket(
 def list_tickets(
     ticket_status: TicketStatus | None = Query(default=None, alias="status"),
     priority: TicketPriority | None = Query(default=None),
+    category_id: int | None = Query(default=None, ge=1),
     search: str | None = Query(default=None, min_length=1, max_length=200),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -74,6 +79,9 @@ def list_tickets(
 
     if priority is not None:
         query = query.where(Ticket.priority == priority)
+
+    if category_id is not None:
+        query = query.where(Ticket.category_id == category_id)
 
     if search is not None:
         term = search.strip()
@@ -154,6 +162,9 @@ def update_ticket(
             status_code=status.HTTP_409_CONFLICT,
             detail="Use the reopen endpoint before changing a closed ticket status",
         )
+
+    if data.category_id is not None and db.get(Category, data.category_id) is None:
+        raise HTTPException(status_code=404, detail="Category not found")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         old_value = getattr(ticket, field)
