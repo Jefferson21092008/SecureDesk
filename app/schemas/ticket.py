@@ -1,8 +1,20 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.ticket import TicketPriority, TicketStatus
+
+
+class TicketSortBy(str, Enum):
+    CREATED_AT = "created_at"
+    ID = "id"
+    TITLE = "title"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
 
 
 class TicketCreate(BaseModel):
@@ -20,8 +32,17 @@ class TicketRead(BaseModel):
     owner_id: int
     assigned_agent_id: int | None
     closed_at: datetime | None
+    created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TicketPage(BaseModel):
+    items: list[TicketRead]
+    page: int
+    page_size: int
+    total: int
+    pages: int
 
 
 class TicketUpdate(BaseModel):

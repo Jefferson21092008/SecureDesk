@@ -49,9 +49,10 @@ def test_user_can_create_and_list_only_own_tickets(client: TestClient) -> None:
     response = client.get("/tickets", headers=auth(first_token))
 
     assert response.status_code == 200
-    tickets = response.json()
-    assert len(tickets) == 1
-    assert tickets[0]["title"] == "First user ticket"
+    payload = response.json()
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["title"] == "First user ticket"
 
 
 def test_user_cannot_read_another_users_ticket(client: TestClient) -> None:
@@ -109,9 +110,9 @@ def test_agent_can_see_and_manage_all_tickets(client: TestClient, db: Session) -
 
     tickets = client.get("/tickets", headers=auth(agent_token))
     assert tickets.status_code == 200
-    assert len(tickets.json()) == 1
+    assert tickets.json()["total"] == 1
 
-    ticket_id = tickets.json()[0]["id"]
+    ticket_id = tickets.json()["items"][0]["id"]
     update = client.patch(
         f"/tickets/{ticket_id}",
         headers=auth(agent_token),

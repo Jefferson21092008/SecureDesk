@@ -1,15 +1,22 @@
 from enum import Enum
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
-from app.models.ticket import Ticket, TicketStatus
+from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
-from app.schemas.ticket import TicketCreate, TicketRead, TicketUpdate
+from app.schemas.ticket import (
+    SortOrder,
+    TicketCreate,
+    TicketPage,
+    TicketRead,
+    TicketSortBy,
+    TicketUpdate,
+)
 
 router = APIRouter()
 
@@ -45,18 +52,66 @@ def create_ticket(
     return ticket
 
 
-@router.get("", response_model=list[TicketRead])
+@router.get("", response_model=TicketPage)
 def list_tickets(
+    ticket_status: TicketStatus | None = Query(default=None, alias="status"),
+    priority: TicketPriority | None = Query(default=None),
+    search: str | None = Query(default=None, min_length=1, max_length=200),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    sort_by: TicketSortBy = Query(default=TicketSortBy.CREATED_AT),
+    sort_order: SortOrder = Query(default=SortOrder.DESC),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[Ticket]:
-    if current_user.role in {UserRole.AGENT, UserRole.ADMIN}:
-        return list(db.scalars(select(Ticket).order_by(Ticket.id.desc())))
-    return list(db.scalars(
-        select(Ticket)
-        .where(Ticket.owner_id == current_user.id)
-        .order_by(Ticket.id.desc())
-    ))
+) -> TicketPage:
+    query = select(Ticket)
+
+    if current_user.role == UserRole.USER:
+        query = query.where(Ticket.owner_id == current_user.id)
+
+    if ticket_status is not None:
+        query = query.where(Ticket.status == ticket_status)
+
+    if priority is not None:
+        query = query.where(Ticket.priority == priority)
+
+    if search is not None:
+        term = search.strip()
+        if term:
+            pattern = f"%{term}%"
+            query = query.where(
+                or_(
+                    Ticket.title.ilike(pattern),
+                    Ticket.description.ilike(pattern),
+                )
+            )
+
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+
+    sort_column = {
+        TicketSortBy.CREATED_AT: Ticket.created_at,
+        TicketSortBy.ID: Ticket.id,
+        TicketSortBy.TITLE: Ticket.title,
+    }[sort_by]
+
+    order_expression = sort_column.asc() if sort_order == SortOrder.ASC else sort_column.desc()
+    id_tiebreaker = Ticket.id.asc() if sort_order == SortOrder.ASC else Ticket.id.desc()
+
+    query = query.order_by(order_expression)
+    if sort_by != TicketSortBy.ID:
+        query = query.order_by(id_tiebreaker)
+
+    offset = (page - 1) * page_size
+    items = list(db.scalars(query.offset(offset).limit(page_size)))
+    pages = (total + page_size - 1) // page_size if total else 0
+
+    return TicketPage(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        pages=pages,
+    )
 
 
 @router.get("/{ticket_id}", response_model=TicketRead)
