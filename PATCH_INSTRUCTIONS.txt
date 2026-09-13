@@ -1,0 +1,17 @@
+SecureDesk V0.2 - Patch: Histórico de alterações
+
+1. Extraia o conteúdo deste ZIP diretamente na pasta raiz do SecureDesk.
+2. Confirme a substituição dos arquivos existentes quando o Windows perguntar.
+3. NÃO use `docker compose down -v`, pois queremos preservar o banco e evoluí-lo com Alembic.
+4. Execute:
+
+   docker compose down
+   docker compose up --build -d
+   docker compose exec api alembic current
+   docker compose exec api pytest -q
+   docker compose exec api ruff check .
+
+A migration esperada no `alembic current` é:
+0003_add_ticket_history (head)
+
+A suíte deve passar com 23 testes.

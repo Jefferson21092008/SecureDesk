@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "securedesk"
+version = "0.2.0"
+description = "Secure IT service desk API built with FastAPI."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
+    "pydantic-settings>=2.7,<3",
+    "pyjwt>=2.10,<3",
+    "pwdlib[argon2]>=0.2,<1",
+    "python-multipart>=0.0.20,<1",
+    "email-validator>=2.2,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+    "httpx>=0.28,<1",
+    "ruff>=0.16,<1",
+    "coverage>=7.6,<8",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["build"]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*"]
