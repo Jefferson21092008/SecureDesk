@@ -4,6 +4,40 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.4 — Segurança (em andamento)
 
+### V0.4.3 — Rate limiting e proteção contra abuso
+
+Esta etapa adiciona limites de requisição e proteção específica contra brute force sem alterar o schema do banco. O objetivo é reduzir abuso automatizado, tentativas repetidas de login e criação excessiva de contas, mantendo respostas previsíveis para o cliente.
+
+Controles desta etapa:
+
+- middleware global aplica uma janela deslizante por endereço do cliente;
+- `POST /auth/login` possui um limite próprio por cliente, separado do limite global;
+- `POST /auth/register` possui limite próprio por cliente;
+- falhas de login são contadas por combinação cliente + identificador de conta;
+- após 5 falhas dentro da janela padrão de 5 minutos, novas tentativas para aquela conta recebem `429 Too Many Requests`, inclusive com a senha correta, até a janela expirar;
+- um login bem-sucedido limpa o contador de falhas daquela combinação;
+- tentativas contra uma conta não bloqueiam outra conta do mesmo cliente;
+- respostas `429` incluem `Retry-After`, `X-RateLimit-Limit` e `X-RateLimit-Remaining`;
+- respostas permitidas pelo middleware global também expõem `X-RateLimit-Limit` e `X-RateLimit-Remaining`;
+- `/health` é isento do limite global para não transformar o próprio healthcheck do container em causa de indisponibilidade;
+- `X-Forwarded-For` não é confiado por padrão, evitando que um cliente contorne o limite apenas falsificando esse header.
+
+Configuração padrão:
+
+```text
+API_RATE_LIMIT_REQUESTS=120
+API_RATE_LIMIT_WINDOW_SECONDS=60
+LOGIN_RATE_LIMIT_REQUESTS=20
+REGISTER_RATE_LIMIT_REQUESTS=10
+AUTH_RATE_LIMIT_WINDOW_SECONDS=60
+LOGIN_FAILURE_LIMIT=5
+LOGIN_FAILURE_WINDOW_SECONDS=300
+```
+
+A implementação desta etapa mantém os contadores em memória, o que é adequado ao container atual com um único processo Uvicorn. Em um deploy com múltiplos workers ou múltiplas réplicas, o armazenamento deve migrar para um backend compartilhado, como Redis, para que todos os processos enxerguem a mesma janela de limite.
+
+Esta etapa não cria migration. O head do Alembic continua sendo `0011_add_revoked_tokens`.
+
 ### V0.4.2 — JWT, expiração e revogação
 
 Esta etapa endurece o ciclo de vida dos access tokens JWT. Cada token agora recebe um identificador único (`jti`), horário de emissão (`iat`), expiração (`exp`), tipo (`access`), emissor (`iss`) e audiência (`aud`). A validação exige todos esses claims e continua aceitando somente o algoritmo configurado no servidor.
@@ -363,6 +397,6 @@ docker compose down -v
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
 - V0.3: consulta, categorias, anexos, SLA e departamentos concluídos.
-- V0.4: segurança em andamento; V0.4.1 conclui autorização/IDOR e V0.4.2 conclui JWT/expiração/revogação; seguem rate limiting, auditoria, validação rigorosa, secrets e política de senha.
+- V0.4: segurança em andamento; V0.4.1 conclui autorização/IDOR, V0.4.2 conclui JWT/expiração/revogação e V0.4.3 conclui rate limiting/anti-abuso; seguem auditoria, validação rigorosa, secrets e política de senha.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.
