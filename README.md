@@ -4,6 +4,29 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.3 — Organização (em desenvolvimento)
 
+### V0.3.3 — Anexos
+
+Chamados podem receber anexos armazenados fora do PostgreSQL. O banco guarda apenas metadados e uma chave aleatória de armazenamento; os bytes ficam no volume persistente `securedesk_attachments` quando a API roda via Docker.
+
+Rotas:
+
+- `POST /tickets/{ticket_id}/attachments` — envia um arquivo via `multipart/form-data`;
+- `GET /tickets/{ticket_id}/attachments` — lista os metadados dos anexos;
+- `GET /tickets/{ticket_id}/attachments/{attachment_id}` — baixa o arquivo;
+- `DELETE /tickets/{ticket_id}/attachments/{attachment_id}` — remove o anexo.
+
+Regras atuais:
+
+- a autorização segue o acesso ao chamado: `USER` somente nos próprios chamados; `AGENT` e `ADMIN` podem acessar os demais;
+- somente o usuário que enviou o arquivo ou um `ADMIN` pode removê-lo;
+- os nomes originais não são usados como caminho de armazenamento, reduzindo risco de path traversal;
+- tipos aceitos nesta etapa: PDF, PNG, JPEG, TXT e LOG;
+- o limite padrão é 5 MiB e pode ser configurado por `ATTACHMENT_MAX_BYTES`;
+- uploads vazios, tipos não permitidos e combinações inválidas de extensão/MIME são rejeitados;
+- upload e remoção geram eventos `ATTACHMENT_ADDED` e `ATTACHMENT_DELETED` no histórico do chamado.
+
+A validação de conteúdo por assinatura/magic bytes será endurecida na V0.4 de segurança.
+
 ### V0.3.2 — Categorias
 
 Os chamados podem ser classificados com uma categoria opcional por meio de `category_id`.
@@ -140,6 +163,8 @@ A evolução atual do banco é:
 0006_add_ticket_created_at
     ↓
 0007_add_ticket_categories
+    ↓
+0008_add_ticket_attachments
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -235,12 +260,12 @@ Apagar também o volume do banco:
 docker compose down -v
 ```
 
-> `down -v` apaga os dados locais do PostgreSQL deste projeto. Use somente quando quiser realmente reiniciar o banco de desenvolvimento.
+> `down -v` apaga os dados locais do PostgreSQL e também o volume de anexos deste projeto. Use somente quando quiser realmente reiniciar o ambiente de desenvolvimento.
 
 ## Evolução planejada
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
-- V0.3: consulta e categorias concluídas; próximos blocos: anexos, SLA e departamentos.
+- V0.3: consulta, categorias e anexos concluídos; próximos blocos: SLA e departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

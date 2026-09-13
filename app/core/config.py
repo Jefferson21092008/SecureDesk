@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     jwt_secret: str = "development-only-secret"
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 30
+    attachments_dir: str = "uploads/attachments"
+    attachment_max_bytes: int = 5 * 1024 * 1024
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

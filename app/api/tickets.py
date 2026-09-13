@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
+from app.models.attachment import Attachment
 from app.models.category import Category
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.ticket_history import TicketHistory
@@ -18,6 +19,7 @@ from app.schemas.ticket import (
     TicketSortBy,
     TicketUpdate,
 )
+from app.services.attachment_storage import delete_stored_file
 
 router = APIRouter()
 
@@ -201,5 +203,10 @@ def delete_ticket(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    storage_keys = list(
+        db.scalars(select(Attachment.storage_key).where(Attachment.ticket_id == ticket.id))
+    )
     db.delete(ticket)
     db.commit()
+    for storage_key in storage_keys:
+        delete_stored_file(storage_key)

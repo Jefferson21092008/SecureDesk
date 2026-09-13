@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.assignment import router as assignment_router
+from app.api.attachments import router as attachments_router
 from app.api.auth import router as auth_router
 from app.api.categories import router as categories_router
 from app.api.comments import router as comments_router
@@ -15,6 +16,7 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
 app.include_router(assignment_router, prefix="/tickets", tags=["assignment"])
 app.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
+app.include_router(attachments_router, prefix="/tickets", tags=["attachments"])
 app.include_router(comments_router, prefix="/tickets", tags=["comments"])
 app.include_router(history_router, prefix="/tickets", tags=["history"])
 app.include_router(lifecycle_router, prefix="/tickets", tags=["lifecycle"])

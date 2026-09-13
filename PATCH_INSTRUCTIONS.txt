@@ -1,38 +1,29 @@
-SecureDesk V0.3.2 - Patch 0007: ticket categories
+SecureDesk V0.3.3 - Ticket attachments
 
-Este patch adiciona categorias aos chamados.
+1. Apply this patch over the project root while on branch:
+   feat/ticket-attachments
 
-Inclui:
-- entidade Category;
-- CRUD de categorias;
-- gerenciamento de categorias restrito a ADMIN;
-- category_id opcional nos chamados;
-- validacao de categoria ao criar/editar chamados;
-- remocao de categoria com category_id: null;
-- filtro category_id no GET /tickets;
-- historico automatico para mudancas de categoria;
-- protecao contra exclusao de categoria em uso;
-- migration 0007_add_ticket_categories;
-- 10 novos testes de autorizacao e regras de negocio.
-
-1. Crie a branch:
-   git checkout -b feat/ticket-categories
-2. Extraia este patch na raiz do projeto SecureDesk, substituindo os arquivos existentes.
-3. Nao use docker compose down -v.
-4. Rode:
+2. Rebuild and start Docker:
    docker compose down
    docker compose up --build -d
-5. Confira:
+
+3. Confirm the migration:
    docker compose exec api alembic current
+
+   Expected:
+   0008_add_ticket_attachments (head)
+
+4. Run tests and lint:
    docker compose exec api pytest -q
    docker compose exec api ruff check .
 
-Esperado:
-- migration: 0007_add_ticket_categories (head)
-- testes: 58 passed
-- Ruff: All checks passed!
-
-Se tudo estiver verde:
+5. If everything is green:
    git add .
-   git commit -m "feat: add ticket categories"
-   git push -u origin feat/ticket-categories
+   git commit -m "feat: add ticket attachments"
+   git push -u origin feat/ticket-attachments
+
+Notes:
+- Docker stores uploaded files in the named volume securedesk_attachments.
+- Do not use `docker compose down -v` unless you intentionally want to erase both PostgreSQL data and uploaded attachments.
+- Allowed baseline types: PDF, PNG, JPEG and plain text/log files.
+- Default size limit: 5 MiB, configurable with ATTACHMENT_MAX_BYTES.
