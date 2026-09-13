@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.ticket import TicketPriority, TicketStatus
@@ -17,6 +19,7 @@ class TicketRead(BaseModel):
     priority: TicketPriority
     owner_id: int
     assigned_agent_id: int | None
+    closed_at: datetime | None
 
     model_config = {"from_attributes": True}
 
