@@ -9,6 +9,7 @@ from app.api.comments import router as comments_router
 from app.api.departments import router as departments_router
 from app.api.history import router as history_router
 from app.api.lifecycle import router as lifecycle_router
+from app.api.metrics import router as metrics_router
 from app.api.security_audit import router as security_audit_router
 from app.api.tickets import router as tickets_router
 from app.core.config import settings
@@ -94,6 +95,7 @@ app.include_router(attachments_router, prefix="/tickets", tags=["attachments"])
 app.include_router(comments_router, prefix="/tickets", tags=["comments"])
 app.include_router(history_router, prefix="/tickets", tags=["history"])
 app.include_router(lifecycle_router, prefix="/tickets", tags=["lifecycle"])
+app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
 app.include_router(security_audit_router, prefix="/security", tags=["security"])
 
 

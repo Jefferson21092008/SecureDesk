@@ -172,6 +172,7 @@ def test_forbidden_access_is_audited_with_actor(client: TestClient, db: Session)
 
 
 def test_global_rate_limit_rejection_is_audited(client: TestClient, db: Session, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.rate_limit.monotonic", lambda: 1000.0)
     monkeypatch.setattr(settings, "api_rate_limit_requests", 1)
     monkeypatch.setattr(settings, "api_rate_limit_window_seconds", 60)
 
@@ -185,6 +186,7 @@ def test_global_rate_limit_rejection_is_audited(client: TestClient, db: Session,
 
 
 def test_auth_endpoint_rate_limit_rejection_is_audited(client: TestClient, db: Session, monkeypatch) -> None:
+    monkeypatch.setattr("app.core.rate_limit.monotonic", lambda: 1000.0)
     monkeypatch.setattr(settings, "register_rate_limit_requests", 1)
     monkeypatch.setattr(settings, "auth_rate_limit_window_seconds", 60)
 
