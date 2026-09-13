@@ -2,6 +2,41 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
+## V0.5 — Métricas (em andamento)
+
+### V0.5.1 — Overview de chamados
+
+A primeira etapa de métricas adiciona um resumo compacto para alimentar dashboards sem exigir que o cliente baixe e agregue todos os chamados.
+
+Novo endpoint:
+
+```text
+GET /metrics/overview
+```
+
+A resposta informa o total de chamados e a distribuição por status e prioridade:
+
+```json
+{
+  "scope": "OWN",
+  "total": 3,
+  "by_status": {
+    "open": 1,
+    "in_progress": 1,
+    "closed": 1
+  },
+  "by_priority": {
+    "low": 1,
+    "medium": 1,
+    "high": 1
+  }
+}
+```
+
+A autorização segue o mesmo escopo usado na listagem de chamados: `USER` recebe métricas apenas dos próprios chamados (`scope=OWN`), enquanto `AGENT` e `ADMIN` recebem o panorama global (`scope=GLOBAL`). Os buckets sempre aparecem, inclusive quando o valor é zero, deixando o contrato estável para o frontend.
+
+A agregação é executada no banco em uma única consulta. Esta etapa não cria migration; o head do Alembic continua sendo `0012_add_security_audit_logs`. O número da aplicação permanece em `0.4.0` até o milestone V0.5 ser concluído.
+
 ## V0.4 — Segurança (concluída)
 
 ### V0.4.4 — Audit log de segurança

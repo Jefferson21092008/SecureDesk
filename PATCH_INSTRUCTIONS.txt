@@ -1,11 +1,11 @@
-SecureDesk V0.4.6 — Vulnerability analysis / final security review
+SecureDesk V0.5.1 — Metrics overview
 
-Base: V0.4.5 already merged into main.
+Base: V0.4.0 already merged into main and tagged.
 
 1. Create branch:
    git checkout main
    git pull origin main
-   git checkout -b security/vulnerability-analysis
+   git checkout -b feat/metrics-overview
 
 2. Extract this patch at the SecureDesk repository root and replace files.
 
@@ -19,11 +19,16 @@ Base: V0.4.5 already merged into main.
 Expected Alembic head:
    0012_add_security_audit_logs (head)
 
-No migration is added by V0.4.6.
+No migration is added by V0.5.1.
 
-4. Commit:
+4. Quick API check in Swagger:
+   GET /metrics/overview
+
+Expected authorization scope:
+   USER        -> OWN (only the user's tickets)
+   AGENT/ADMIN -> GLOBAL (all tickets)
+
+5. Commit:
    git add .
-   git commit -m "security: complete vulnerability analysis"
-   git push -u origin security/vulnerability-analysis
-
-The V0.4 milestone can be tagged v0.4.0 after the PR is merged and CI is green.
+   git commit -m "feat: add ticket metrics overview"
+   git push -u origin feat/metrics-overview
