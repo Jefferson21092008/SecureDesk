@@ -2,6 +2,43 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
+## V0.4 — Segurança (em andamento)
+
+### V0.4.2 — JWT, expiração e revogação
+
+Esta etapa endurece o ciclo de vida dos access tokens JWT. Cada token agora recebe um identificador único (`jti`), horário de emissão (`iat`), expiração (`exp`), tipo (`access`), emissor (`iss`) e audiência (`aud`). A validação exige todos esses claims e continua aceitando somente o algoritmo configurado no servidor.
+
+Controles desta etapa:
+
+- `POST /auth/login` continua emitindo Bearer tokens e agora também informa `expires_in`;
+- cada login produz um `jti` diferente, permitindo revogação por sessão;
+- `POST /auth/logout` revoga somente o access token usado naquela requisição;
+- tokens revogados recebem a mesma resposta `401 Invalid or expired token` de tokens inválidos/expirados;
+- a blacklist persiste apenas o `jti` e metadados necessários, nunca o JWT bruto;
+- expiração, emissor, audiência, tipo e claims obrigatórios são verificados antes de carregar o usuário;
+- revogar uma sessão não invalida automaticamente outras sessões válidas do mesmo usuário.
+
+A migration `0011_add_revoked_tokens` cria a tabela `revoked_tokens`, vinculada ao usuário, para persistir a revogação até o vencimento natural do token.
+
+### V0.4.1 — Autorização e proteção contra IDOR
+
+Esta etapa endurece o controle de acesso a objetos do domínio, especialmente chamados e recursos aninhados. O objetivo é impedir que um `USER` obtenha ou altere dados de outro usuário apenas adivinhando identificadores na URL.
+
+Controles desta etapa:
+
+- o acesso a um chamado é centralizado em `get_accessible_ticket`;
+- para `USER`, um chamado inexistente e um chamado pertencente a outra pessoa produzem a mesma resposta `404 Ticket not found`, reduzindo enumeração de IDs;
+- comentários, histórico e anexos validam primeiro o acesso ao chamado pai;
+- `attachment_id` é sempre consultado junto com o `ticket_id`, evitando troca do recurso filho entre chamados;
+- `GET /tickets` aplica o escopo do proprietário antes dos filtros, busca, paginação e ordenação;
+- rotas que um `USER` nunca pode executar, como atribuição, fechamento/reabertura e exclusão de chamados, negam pelo papel antes de consultar o objeto;
+- campos sensíveis controlados pelo servidor, como `owner_id`, `assigned_agent_id`, `status` na criação e `closed_at`, não podem ser alterados por mass assignment;
+- `AGENT` e `ADMIN` continuam com o acesso transversal previsto pelas regras de negócio.
+
+A suíte inclui cenários de IDOR com IDs adivinhados, recursos aninhados, tentativa de mass assignment, enumeração de existência e verificação de que o escopo de busca não pode ser contornado.
+
+Esta etapa não altera o schema do banco e, portanto, não cria uma nova migration. O head continua sendo `0010_add_ticket_departments`.
+
 ## V0.3 — Organização (concluída)
 
 ### V0.3.5 — Departamentos
@@ -223,6 +260,8 @@ A evolução atual do banco é:
 0009_add_ticket_sla
     ↓
 0010_add_ticket_departments
+    ↓
+0011_add_revoked_tokens
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -324,6 +363,6 @@ docker compose down -v
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
 - V0.3: consulta, categorias, anexos, SLA e departamentos concluídos.
-- V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
+- V0.4: segurança em andamento; V0.4.1 conclui autorização/IDOR e V0.4.2 conclui JWT/expiração/revogação; seguem rate limiting, auditoria, validação rigorosa, secrets e política de senha.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.
