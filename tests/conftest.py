@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 import app.models as _app_models  # noqa: F401
 from app.core.config import settings
 from app.core.rate_limit import rate_limiter
-from app.db import Base, get_db
+from app.db import Base, SessionLocal, get_db
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite://"
@@ -32,8 +32,10 @@ def database(tmp_path, monkeypatch) -> None:
     rate_limiter.reset()
     Base.metadata.create_all(bind=test_engine)
     app.dependency_overrides[get_db] = override_get_db
+    app.state.audit_session_factory = TestingSessionLocal
     yield
     app.dependency_overrides.clear()
+    app.state.audit_session_factory = SessionLocal
     rate_limiter.reset()
     Base.metadata.drop_all(bind=test_engine)
 

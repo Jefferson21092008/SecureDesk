@@ -9,11 +9,15 @@ from app.api.comments import router as comments_router
 from app.api.departments import router as departments_router
 from app.api.history import router as history_router
 from app.api.lifecycle import router as lifecycle_router
+from app.api.security_audit import router as security_audit_router
 from app.api.tickets import router as tickets_router
 from app.core.config import settings
 from app.core.rate_limit import client_ip, rate_limiter
+from app.db import SessionLocal
+from app.services.security_audit import SecurityEventType, record_security_event_detached
 
 app = FastAPI(title=settings.app_name, version="0.3.0")
+app.state.audit_session_factory = SessionLocal
 
 
 @app.middleware("http")
@@ -27,6 +31,12 @@ async def enforce_api_rate_limit(request: Request, call_next):
         window_seconds=settings.api_rate_limit_window_seconds,
     )
     if not decision.allowed:
+        record_security_event_detached(
+            request,
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"scope": "api_global", "retry_after": decision.retry_after},
+        )
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
@@ -38,6 +48,25 @@ async def enforce_api_rate_limit(request: Request, call_next):
         )
 
     response = await call_next(request)
+
+    # Login failures already record a richer LOGIN_FAILED event in the auth route.
+    # Other 401/403 responses are useful authorization signals for defenders.
+    if request.url.path != "/auth/login" and response.status_code in {
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    }:
+        event_type = (
+            SecurityEventType.UNAUTHORIZED_ACCESS
+            if response.status_code == status.HTTP_401_UNAUTHORIZED
+            else SecurityEventType.FORBIDDEN_ACCESS
+        )
+        record_security_event_detached(
+            request,
+            event_type,
+            actor_id=getattr(request.state, "audit_actor_id", None),
+            status_code=response.status_code,
+        )
+
     if "X-RateLimit-Limit" not in response.headers:
         response.headers["X-RateLimit-Limit"] = str(decision.limit)
     if "X-RateLimit-Remaining" not in response.headers:
@@ -54,6 +83,7 @@ app.include_router(attachments_router, prefix="/tickets", tags=["attachments"])
 app.include_router(comments_router, prefix="/tickets", tags=["comments"])
 app.include_router(history_router, prefix="/tickets", tags=["history"])
 app.include_router(lifecycle_router, prefix="/tickets", tags=["lifecycle"])
+app.include_router(security_audit_router, prefix="/security", tags=["security"])
 
 
 @app.get("/health", tags=["health"])

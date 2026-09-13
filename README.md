@@ -4,6 +4,33 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.4 — Segurança (em andamento)
 
+### V0.4.4 — Audit log de segurança
+
+Esta etapa adiciona uma trilha de auditoria separada do histórico funcional dos chamados. O objetivo é registrar sinais relevantes para investigação de segurança sem armazenar senhas ou tokens Bearer brutos.
+
+Eventos registrados nesta etapa:
+
+- `ACCOUNT_CREATED`;
+- `LOGIN_SUCCESS`;
+- `LOGIN_FAILED`;
+- `LOGOUT`;
+- `RATE_LIMIT_EXCEEDED`;
+- `UNAUTHORIZED_ACCESS`;
+- `FORBIDDEN_ACCESS`.
+
+Cada registro pode guardar o ator autenticado, método HTTP, caminho, status, endereço do cliente, `User-Agent`, detalhes mínimos do evento e data/hora. Falhas de login usam um hash do identificador para correlação, e o logout registra apenas o `jti` da sessão revogada, nunca o JWT completo.
+
+A consulta é somente leitura e restrita a `ADMIN`:
+
+```text
+GET /security/audit
+GET /security/audit?event_type=LOGIN_FAILED&actor_id=3&status_code=401&page=1&page_size=50
+```
+
+Os registros são ordenados do mais recente para o mais antigo e suportam paginação de até 100 itens por página. Não existem endpoints para alterar ou apagar eventos de auditoria.
+
+A migration `0012_add_security_audit_logs` cria a tabela `security_audit_logs`. O log de segurança é diferente de `ticket_history`: o primeiro registra autenticação, autorização e abuso; o segundo continua registrando mudanças funcionais de um chamado.
+
 ### V0.4.3 — Rate limiting e proteção contra abuso
 
 Esta etapa adiciona limites de requisição e proteção específica contra brute force sem alterar o schema do banco. O objetivo é reduzir abuso automatizado, tentativas repetidas de login e criação excessiva de contas, mantendo respostas previsíveis para o cliente.
@@ -296,6 +323,8 @@ A evolução atual do banco é:
 0010_add_ticket_departments
     ↓
 0011_add_revoked_tokens
+    ↓
+0012_add_security_audit_logs
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -397,6 +426,6 @@ docker compose down -v
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
 - V0.3: consulta, categorias, anexos, SLA e departamentos concluídos.
-- V0.4: segurança em andamento; V0.4.1 conclui autorização/IDOR, V0.4.2 conclui JWT/expiração/revogação e V0.4.3 conclui rate limiting/anti-abuso; seguem auditoria, validação rigorosa, secrets e política de senha.
+- V0.4: segurança em andamento; V0.4.1 autorização/IDOR, V0.4.2 JWT/revogação, V0.4.3 rate limiting e V0.4.4 auditoria concluídos; seguem validação rigorosa, secrets, política de senha e revisão de vulnerabilidades.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

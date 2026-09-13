@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.attachment import Attachment
     from app.models.comment import Comment
     from app.models.revoked_token import RevokedToken
+    from app.models.security_audit import SecurityAuditLog
     from app.models.ticket import Ticket
     from app.models.ticket_history import TicketHistory
 
@@ -42,4 +43,8 @@ class User(Base):
     revoked_tokens: Mapped[list["RevokedToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+    security_audit_events: Mapped[list["SecurityAuditLog"]] = relationship(
+        back_populates="actor",
+        passive_deletes=True,
     )
