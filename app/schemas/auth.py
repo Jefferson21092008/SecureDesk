@@ -1,11 +1,24 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.core.validation import validate_password_strength
 from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+    @model_validator(mode="after")
+    def enforce_password_policy(self) -> "UserCreate":
+        validate_password_strength(self.password, email=str(self.email))
+        return self
 
 
 class UserRead(BaseModel):

@@ -183,7 +183,7 @@ def test_query_parameters_cannot_escape_owner_scope(client: TestClient) -> None:
     assert all(item["id"] != own["id"] for item in response.json()["items"])
 
 
-def test_ticket_payload_cannot_mass_assign_security_sensitive_fields(client: TestClient) -> None:
+def test_ticket_payload_cannot_mass_assign_security_sensitive_fields(client: TestClient, db: Session) -> None:
     user_id, token = register_and_token(client, "mass-assignment@example.com")
 
     created = client.post(
@@ -197,14 +197,11 @@ def test_ticket_payload_cannot_mass_assign_security_sensitive_fields(client: Tes
             "status": "CLOSED",
         },
     )
-    assert created.status_code == 201
-    payload = created.json()
-    assert payload["owner_id"] == user_id
-    assert payload["assigned_agent_id"] is None
-    assert payload["status"] == "OPEN"
+    assert created.status_code == 422
 
+    legitimate = create_ticket(client, token, "Mass assignment target")
     patched = client.patch(
-        f"/tickets/{payload['id']}",
+        f"/tickets/{legitimate['id']}",
         headers=auth(token),
         json={
             "title": "Legitimate title update",
@@ -213,11 +210,13 @@ def test_ticket_payload_cannot_mass_assign_security_sensitive_fields(client: Tes
             "closed_at": "2099-01-01T00:00:00Z",
         },
     )
-    assert patched.status_code == 200
-    assert patched.json()["title"] == "Legitimate title update"
-    assert patched.json()["owner_id"] == user_id
-    assert patched.json()["assigned_agent_id"] is None
-    assert patched.json()["closed_at"] is None
+    assert patched.status_code == 422
+
+    stored = db.get(Ticket, legitimate["id"])
+    assert stored is not None
+    assert stored.owner_id == user_id
+    assert stored.assigned_agent_id is None
+    assert stored.closed_at is None
 
 
 @pytest.mark.parametrize(
@@ -270,7 +269,7 @@ def test_regular_user_cannot_promote_role_through_api(client: TestClient, db: Se
         headers=auth(token),
         json={"role": "ADMIN", "title": "Still a regular user"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 422
 
     user = db.scalar(select(User).where(User.id == user_id))
     assert user is not None

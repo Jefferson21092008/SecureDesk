@@ -145,7 +145,7 @@ def login(
         raise rate_limit_exception("Too many failed login attempts", failure_decision)
 
     try:
-        email = str(email_adapter.validate_python(form_data.username))
+        email = str(email_adapter.validate_python(form_data.username)).strip().lower()
     except ValidationError:
         rate_limiter.record(failure_key, settings.login_failure_window_seconds)
         _persist_auth_event(

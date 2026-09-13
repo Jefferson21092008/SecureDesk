@@ -19,9 +19,10 @@ services:
       dockerfile: docker/Dockerfile
     environment:
       APP_NAME: ${APP_NAME:-SecureDesk}
+      APP_ENV: ${APP_ENV:-development}
       DEBUG: ${DEBUG:-false}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-securedesk}:${POSTGRES_PASSWORD:-securedesk}@db:5432/${POSTGRES_DB:-securedesk}
-      JWT_SECRET: ${JWT_SECRET:-development-only-change-me}
+      JWT_SECRET: ${JWT_SECRET:-development-only-secret-change-me-32-bytes}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ISSUER: ${JWT_ISSUER:-securedesk}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-securedesk-api}

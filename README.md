@@ -429,3 +429,18 @@ docker compose down -v
 - V0.4: segurança em andamento; V0.4.1 autorização/IDOR, V0.4.2 JWT/revogação, V0.4.3 rate limiting e V0.4.4 auditoria concluídos; seguem validação rigorosa, secrets, política de senha e revisão de vulnerabilidades.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.
+
+## V0.4.5 — Input hardening, password policy and secrets
+
+This security block makes request handling fail closed instead of silently accepting suspicious input:
+
+- registration passwords require 12–128 characters with upper/lowercase, digit and symbol;
+- common passwords, control characters and passwords containing the email identifier are rejected;
+- registration emails are normalized to lowercase for consistent identity checks;
+- write schemas reject unknown fields (`extra="forbid"`), turning mass-assignment attempts into `422` responses;
+- ticket/comment text is trimmed, whitespace-only input is rejected, and unsupported control characters are blocked;
+- empty ticket PATCH requests and invalid assignment identifiers are rejected;
+- security-sensitive settings have explicit bounds and JWT signing remains pinned to `HS256`;
+- `APP_ENV=production` refuses debug mode, the development JWT secret, and the default database credentials.
+
+No migration is required for V0.4.5. Production deployments must provide their own high-entropy `JWT_SECRET` and database credentials through environment variables/secrets; `.env` remains local and must not be committed.
