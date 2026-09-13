@@ -1,23 +1,29 @@
-SecureDesk V0.4.5 - Input hardening, password policy and secrets
+SecureDesk V0.4.6 — Vulnerability analysis / final security review
 
-Base expected: V0.4.4 security audit logging merged into main.
-No Alembic migration is added in this patch; head remains 0012_add_security_audit_logs.
+Base: V0.4.5 already merged into main.
 
-Suggested workflow:
-  git checkout main
-  git pull origin main
-  git checkout -b security/input-hardening
+1. Create branch:
+   git checkout main
+   git pull origin main
+   git checkout -b security/vulnerability-analysis
 
-Extract this patch at the SecureDesk repository root, replacing files when prompted.
+2. Extract this patch at the SecureDesk repository root and replace files.
 
-Then validate:
-  docker compose down
-  docker compose up --build -d
-  docker compose exec api alembic current
-  docker compose exec api pytest -q
-  docker compose exec api ruff check .
+3. Rebuild and validate:
+   docker compose down
+   docker compose up --build -d
+   docker compose exec api alembic current
+   docker compose exec api pytest -q
+   docker compose exec api ruff check .
 
 Expected Alembic head:
-  0012_add_security_audit_logs (head)
+   0012_add_security_audit_logs (head)
 
-Do not use `docker compose down -v` unless you intentionally want to delete persistent data.
+No migration is added by V0.4.6.
+
+4. Commit:
+   git add .
+   git commit -m "security: complete vulnerability analysis"
+   git push -u origin security/vulnerability-analysis
+
+The V0.4 milestone can be tagged v0.4.0 after the PR is merged and CI is green.

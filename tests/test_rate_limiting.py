@@ -45,6 +45,9 @@ def test_global_rate_limit_recovers_after_window(client: TestClient, monkeypatch
 
 
 def test_login_endpoint_rate_limit_caps_high_volume(client: TestClient, monkeypatch) -> None:
+    # Freeze the limiter clock so Retry-After is deterministic even when
+    # password verification intentionally takes measurable time.
+    monkeypatch.setattr("app.core.rate_limit.monotonic", lambda: 1000.0)
     monkeypatch.setattr(settings, "login_rate_limit_requests", 2)
     monkeypatch.setattr(settings, "auth_rate_limit_window_seconds", 60)
 

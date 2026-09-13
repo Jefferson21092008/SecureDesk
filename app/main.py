@@ -16,14 +16,22 @@ from app.core.rate_limit import client_ip, rate_limiter
 from app.db import SessionLocal
 from app.services.security_audit import SecurityEventType, record_security_event_detached
 
-app = FastAPI(title=settings.app_name, version="0.3.0")
+app = FastAPI(title=settings.app_name, version="0.4.0")
 app.state.audit_session_factory = SessionLocal
+
+
+def _apply_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
 
 
 @app.middleware("http")
 async def enforce_api_rate_limit(request: Request, call_next):
     if request.url.path == "/health":
-        return await call_next(request)
+        response = await call_next(request)
+        return _apply_security_headers(response)
 
     decision = rate_limiter.consume(
         key=f"api:{client_ip(request)}",
@@ -37,7 +45,7 @@ async def enforce_api_rate_limit(request: Request, call_next):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             details={"scope": "api_global", "retry_after": decision.retry_after},
         )
-        return JSONResponse(
+        response = JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"detail": "Too many requests"},
             headers={
@@ -46,6 +54,7 @@ async def enforce_api_rate_limit(request: Request, call_next):
                 "X-RateLimit-Remaining": "0",
             },
         )
+        return _apply_security_headers(response)
 
     response = await call_next(request)
 
@@ -71,7 +80,9 @@ async def enforce_api_rate_limit(request: Request, call_next):
         response.headers["X-RateLimit-Limit"] = str(decision.limit)
     if "X-RateLimit-Remaining" not in response.headers:
         response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
-    return response
+    if request.url.path.startswith(("/auth", "/security")):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return _apply_security_headers(response)
 
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

@@ -2,7 +2,7 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
-## V0.4 — Segurança (em andamento)
+## V0.4 — Segurança (concluída)
 
 ### V0.4.4 — Audit log de segurança
 
@@ -175,7 +175,7 @@ Regras atuais:
 - uploads vazios, tipos não permitidos e combinações inválidas de extensão/MIME são rejeitados;
 - upload e remoção geram eventos `ATTACHMENT_ADDED` e `ATTACHMENT_DELETED` no histórico do chamado.
 
-A validação de conteúdo por assinatura/magic bytes será endurecida na V0.4 de segurança.
+A V0.4.6 adiciona validação leve de assinatura/conteúdo, além das verificações de extensão e MIME desta etapa.
 
 ### V0.3.2 — Categorias
 
@@ -426,7 +426,7 @@ docker compose down -v
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
 - V0.3: consulta, categorias, anexos, SLA e departamentos concluídos.
-- V0.4: segurança em andamento; V0.4.1 autorização/IDOR, V0.4.2 JWT/revogação, V0.4.3 rate limiting e V0.4.4 auditoria concluídos; seguem validação rigorosa, secrets, política de senha e revisão de vulnerabilidades.
+- V0.4: segurança concluída com autorização/IDOR, JWT/revogação, rate limiting, auditoria, hardening de entrada/senhas/secrets e revisão final de vulnerabilidades.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.
 
@@ -444,3 +444,20 @@ This security block makes request handling fail closed instead of silently accep
 - `APP_ENV=production` refuses debug mode, the development JWT secret, and the default database credentials.
 
 No migration is required for V0.4.5. Production deployments must provide their own high-entropy `JWT_SECRET` and database credentials through environment variables/secrets; `.env` remains local and must not be committed.
+
+
+## V0.4.6 — Vulnerability analysis and final security review
+
+The V0.4 security milestone closes with a dedicated adversarial regression suite and documented residual risks. This block adds:
+
+- rejection tests for unsigned and algorithm-confusion JWTs;
+- bounded login credentials before expensive password verification;
+- a dummy password-verification path for nonexistent accounts to reduce timing-based account enumeration;
+- SQL-injection-shaped search regression tests while preserving owner scope;
+- defense-in-depth validation for attachment storage paths;
+- lightweight file-signature checks to reject MIME/content spoofing;
+- security response headers and `Cache-Control: no-store` on auth/security responses;
+- checks that audit records never persist raw passwords or bearer tokens;
+- `SECURITY_REVIEW.md` with closed findings, test coverage and explicit residual risks.
+
+No migration is required. The application/package version is now `0.4.0`. See `SECURITY_REVIEW.md` for the complete review and production limitations.

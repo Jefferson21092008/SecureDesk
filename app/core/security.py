@@ -8,6 +8,9 @@ from pwdlib import PasswordHash
 from app.core.config import settings
 
 password_hash = PasswordHash.recommended()
+# Used to keep the password-verification path comparable when an account does not exist.
+# The value is generated at process startup and is never accepted as a real credential.
+DUMMY_PASSWORD_HASH = password_hash.hash("SecureDesk-Dummy-Password-Only-9!")
 
 
 @dataclass(frozen=True)

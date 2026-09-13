@@ -17,16 +17,25 @@ ALLOWED_ATTACHMENT_TYPES: dict[str, set[str]] = {
 def _storage_root() -> Path:
     root = Path(settings.attachments_dir)
     root.mkdir(parents=True, exist_ok=True)
-    return root
+    return root.resolve()
 
 
 def attachment_path(storage_key: str) -> Path:
-    return _storage_root() / storage_key
+    root = _storage_root()
+    if not storage_key or Path(storage_key).name != storage_key or storage_key in {".", ".."}:
+        raise ValueError("Invalid attachment storage key")
+
+    candidate = (root / storage_key).resolve()
+    if candidate.parent != root:
+        raise ValueError("Attachment path escapes storage root")
+    return candidate
 
 
 def _validate_upload(upload: UploadFile) -> tuple[str, str]:
     original_filename = (upload.filename or "").replace("\\", "/").split("/")[-1].strip()
     if not original_filename or len(original_filename) > 255:
+        raise HTTPException(status_code=400, detail="Invalid attachment filename")
+    if any(ord(char) < 32 or ord(char) == 127 for char in original_filename):
         raise HTTPException(status_code=400, detail="Invalid attachment filename")
 
     content_type = upload.content_type or ""
@@ -41,6 +50,28 @@ def _validate_upload(upload: UploadFile) -> tuple[str, str]:
     return original_filename, content_type
 
 
+def _validate_content_signature(content_type: str, sample: bytes) -> None:
+    matches = False
+    if content_type == "application/pdf":
+        matches = b"%PDF-" in sample[:1024]
+    elif content_type == "image/png":
+        matches = sample.startswith(b"\x89PNG\r\n\x1a\n")
+    elif content_type == "image/jpeg":
+        matches = sample.startswith(b"\xff\xd8\xff")
+    elif content_type == "text/plain":
+        try:
+            sample.decode("utf-8")
+            matches = b"\x00" not in sample
+        except UnicodeDecodeError:
+            matches = False
+
+    if not matches:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Attachment content does not match declared type",
+        )
+
+
 def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
     original_filename, content_type = _validate_upload(upload)
     extension = Path(original_filename).suffix.lower()
@@ -49,8 +80,14 @@ def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
     size_bytes = 0
 
     try:
+        first_chunk = upload.file.read(CHUNK_SIZE)
+        if not first_chunk:
+            raise HTTPException(status_code=400, detail="Attachment cannot be empty")
+        _validate_content_signature(content_type, first_chunk)
+
         with destination.open("xb") as output:
-            while chunk := upload.file.read(CHUNK_SIZE):
+            chunk = first_chunk
+            while chunk:
                 size_bytes += len(chunk)
                 if size_bytes > settings.attachment_max_bytes:
                     raise HTTPException(
@@ -58,15 +95,12 @@ def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
                         detail="Attachment exceeds maximum allowed size",
                     )
                 output.write(chunk)
+                chunk = upload.file.read(CHUNK_SIZE)
     except Exception:
         destination.unlink(missing_ok=True)
         raise
     finally:
         upload.file.close()
-
-    if size_bytes == 0:
-        destination.unlink(missing_ok=True)
-        raise HTTPException(status_code=400, detail="Attachment cannot be empty")
 
     return original_filename, storage_key, content_type, size_bytes
 
@@ -74,7 +108,7 @@ def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
 def delete_stored_file(storage_key: str) -> None:
     try:
         attachment_path(storage_key).unlink(missing_ok=True)
-    except OSError:
+    except (OSError, ValueError):
         # Database state is authoritative. Storage cleanup can be retried separately
-        # if the local filesystem is temporarily unavailable.
+        # if the local filesystem is unavailable or a stored key is malformed.
         pass
