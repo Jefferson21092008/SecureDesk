@@ -1,13 +1,13 @@
-SecureDesk V0.4.2 — JWT, expiração e revogação
-==============================================
+SecureDesk V0.4.3 — Rate limiting e proteção contra abuso
+=========================================================
 
-Este patch deve ser aplicado sobre a V0.4.1 concluída.
-A nova migration é 0011_add_revoked_tokens.
+Este patch deve ser aplicado sobre a V0.4.2 concluída.
+Esta etapa NÃO cria migration. O head continua sendo 0011_add_revoked_tokens.
 
 1. Confirme que a main está atualizada e crie a branch:
    git checkout main
    git pull origin main
-   git checkout -b security/jwt-revocation
+   git checkout -b security/rate-limiting
 
 2. Extraia o conteúdo deste ZIP na raiz do SecureDesk, substituindo os arquivos existentes.
 
@@ -25,7 +25,7 @@ A nova migration é 0011_add_revoked_tokens.
    docker compose exec api pytest -q
 
    Esperado nesta versão:
-   117 passed
+   128 passed
 
 6. Rode o lint:
    docker compose exec api ruff check .
@@ -35,16 +35,16 @@ A nova migration é 0011_add_revoked_tokens.
 
 7. Se tudo estiver verde:
    git add .
-   git commit -m "security: add JWT revocation"
-   git push -u origin security/jwt-revocation
+   git commit -m "security: add rate limiting and abuse protection"
+   git push -u origin security/rate-limiting
 
 Principais controles adicionados:
-- JWT exige sub, jti, type, iat, exp, iss e aud;
-- algoritmo de assinatura continua fixado pelo servidor;
-- cada login gera um jti único;
-- POST /auth/logout revoga o token atual;
-- a blacklist grava o jti, nunca o JWT bruto;
-- token revogado é rejeitado como inválido/expirado;
-- revogação de uma sessão não encerra outras sessões;
-- login retorna expires_in para o cliente;
-- migration 0011_add_revoked_tokens adiciona persistência da blacklist.
+- limite global por cliente em janela deslizante;
+- limite próprio para login e cadastro;
+- bloqueio temporário após falhas repetidas de login;
+- sucesso de login limpa o contador de falhas da conta/cliente;
+- respostas 429 incluem Retry-After e metadados de limite;
+- /health não consome quota do limiter;
+- X-Forwarded-For não é confiado sem proxy explicitamente confiável;
+- parâmetros de rate limiting configuráveis por variáveis de ambiente;
+- contadores em memória, adequados ao processo único atual; produção multi-worker deve usar backend compartilhado.

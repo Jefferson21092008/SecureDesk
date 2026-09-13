@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 
 from app.api.assignment import router as assignment_router
 from app.api.attachments import router as attachments_router
@@ -10,8 +11,39 @@ from app.api.history import router as history_router
 from app.api.lifecycle import router as lifecycle_router
 from app.api.tickets import router as tickets_router
 from app.core.config import settings
+from app.core.rate_limit import client_ip, rate_limiter
 
 app = FastAPI(title=settings.app_name, version="0.3.0")
+
+
+@app.middleware("http")
+async def enforce_api_rate_limit(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    decision = rate_limiter.consume(
+        key=f"api:{client_ip(request)}",
+        limit=settings.api_rate_limit_requests,
+        window_seconds=settings.api_rate_limit_window_seconds,
+    )
+    if not decision.allowed:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "Too many requests"},
+            headers={
+                "Retry-After": str(decision.retry_after),
+                "X-RateLimit-Limit": str(decision.limit),
+                "X-RateLimit-Remaining": "0",
+            },
+        )
+
+    response = await call_next(request)
+    if "X-RateLimit-Limit" not in response.headers:
+        response.headers["X-RateLimit-Limit"] = str(decision.limit)
+    if "X-RateLimit-Remaining" not in response.headers:
+        response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
+    return response
+
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
