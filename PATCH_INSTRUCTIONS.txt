@@ -1,39 +1,45 @@
-SecureDesk V0.3.4 - SLA and priority
+SecureDesk V0.3.5 — Departamentos
+=================================
 
-1. Apply this patch over the project root while on branch:
-   feat/ticket-sla
+Este patch deve ser aplicado sobre a V0.3.4 já concluída (head 0009_add_ticket_sla).
 
-2. Rebuild and start Docker:
+1. Crie a branch:
+   git checkout -b feat/ticket-departments
+
+2. Extraia o conteúdo deste ZIP na raiz do SecureDesk, substituindo os arquivos existentes.
+
+3. Recrie os containers sem remover volumes:
    docker compose down
    docker compose up --build -d
 
-3. Confirm the migration:
+4. Confirme a migration:
    docker compose exec api alembic current
 
-   Expected:
-   0009_add_ticket_sla (head)
+   Esperado:
+   0010_add_ticket_departments (head)
 
-4. Run tests and lint:
+5. Rode os testes:
    docker compose exec api pytest -q
+
+   Esperado nesta versão:
+   91 passed
+
+6. Rode o lint:
    docker compose exec api ruff check .
 
-   Expected baseline:
-   80 passed
+   Esperado:
    All checks passed!
 
-5. If everything is green:
+7. Se tudo estiver verde:
    git add .
-   git commit -m "feat: add ticket SLA"
-   git push -u origin feat/ticket-sla
+   git commit -m "feat: add ticket departments"
+   git push -u origin feat/ticket-departments
 
-Baseline SLA policy in this version:
-- HIGH: 4 hours
-- MEDIUM: 8 hours
-- LOW: 24 hours
-
-Notes:
-- sla_due_at is persisted in PostgreSQL and indexed.
-- Changing priority recalculates the deadline from the original created_at; it does not restart the SLA clock.
-- SLA status is ON_TRACK, MET or BREACHED.
-- GET /tickets supports sla_status filtering and sla_due_at ordering.
-- Existing tickets are backfilled by migration 0009 according to their priority and created_at.
+Principais regras:
+- somente ADMIN gerencia a lista de departamentos;
+- qualquer usuário autenticado pode consultar departamentos;
+- USER escolhe departamento na criação, mas não pode redirecionar o chamado depois;
+- AGENT e ADMIN podem alterar/remover department_id;
+- GET /tickets aceita department_id como filtro;
+- mudanças entram no histórico;
+- departamento em uso não pode ser excluído.

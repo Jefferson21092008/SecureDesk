@@ -2,7 +2,34 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
-## V0.3 — Organização (em desenvolvimento)
+## V0.3 — Organização (concluída)
+
+### V0.3.5 — Departamentos
+
+Chamados podem ser encaminhados para um departamento de atendimento por meio de `department_id`. Departamentos representam a fila/área responsável pelo chamado, enquanto categorias continuam descrevendo o tipo do incidente ou solicitação.
+
+Rotas de departamentos:
+
+- `GET /departments` — qualquer usuário autenticado;
+- `GET /departments/{department_id}` — qualquer usuário autenticado;
+- `POST /departments` — somente `ADMIN`;
+- `PATCH /departments/{department_id}` — somente `ADMIN`;
+- `DELETE /departments/{department_id}` — somente `ADMIN`, desde que não existam chamados usando o departamento.
+
+Regras atuais:
+
+- nomes são únicos sem diferenciar maiúsculas/minúsculas;
+- `USER` pode escolher um departamento existente ao abrir um chamado, mas não pode redirecioná-lo depois;
+- `AGENT` e `ADMIN` podem alterar ou remover o departamento de um chamado;
+- departamentos inexistentes são rejeitados;
+- mudanças de departamento entram no histórico do chamado;
+- `GET /tickets` aceita `department_id` como filtro.
+
+Exemplo:
+
+```text
+GET /tickets?department_id=2&status=OPEN&page=1&page_size=20
+```
 
 ### V0.3.4 — SLA e prioridade
 
@@ -94,6 +121,7 @@ Parâmetros atuais:
 - `status`: `OPEN`, `IN_PROGRESS` ou `CLOSED`;
 - `priority`: `LOW`, `MEDIUM` ou `HIGH`;
 - `category_id`: identificador de uma categoria;
+- `department_id`: identificador do departamento responsável;
 - `sla_status`: `ON_TRACK`, `MET` ou `BREACHED`;
 - `search`: busca case-insensitive em título e descrição;
 - `page`: página, começando em 1;
@@ -193,6 +221,8 @@ A evolução atual do banco é:
 0008_add_ticket_attachments
     ↓
 0009_add_ticket_sla
+    ↓
+0010_add_ticket_departments
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -293,7 +323,7 @@ docker compose down -v
 ## Evolução planejada
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
-- V0.3: consulta, categorias, anexos e SLA concluídos; próximo bloco: departamentos.
+- V0.3: consulta, categorias, anexos, SLA e departamentos concluídos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

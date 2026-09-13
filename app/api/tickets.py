@@ -9,6 +9,7 @@ from app.api.auth import get_current_user
 from app.db import get_db
 from app.models.attachment import Attachment
 from app.models.category import Category
+from app.models.department import Department
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
@@ -42,6 +43,8 @@ def create_ticket(
 ) -> Ticket:
     if data.category_id is not None and db.get(Category, data.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    if data.department_id is not None and db.get(Department, data.department_id) is None:
+        raise HTTPException(status_code=404, detail="Department not found")
 
     created_at = datetime.now(timezone.utc)
     ticket = Ticket(
@@ -71,6 +74,7 @@ def list_tickets(
     ticket_status: TicketStatus | None = Query(default=None, alias="status"),
     priority: TicketPriority | None = Query(default=None),
     category_id: int | None = Query(default=None, ge=1),
+    department_id: int | None = Query(default=None, ge=1),
     sla_status: SLAStatus | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=200),
     page: int = Query(default=1, ge=1),
@@ -93,6 +97,9 @@ def list_tickets(
 
     if category_id is not None:
         query = query.where(Ticket.category_id == category_id)
+
+    if department_id is not None:
+        query = query.where(Ticket.department_id == department_id)
 
     if sla_status is not None:
         now = datetime.now(timezone.utc)
@@ -177,6 +184,8 @@ def update_ticket(
         raise HTTPException(status_code=403, detail="Forbidden")
     if current_user.role == UserRole.USER and data.status is not None:
         raise HTTPException(status_code=403, detail="Users cannot change ticket status")
+    if current_user.role == UserRole.USER and "department_id" in data.model_fields_set:
+        raise HTTPException(status_code=403, detail="Users cannot change ticket department")
 
     if data.status == TicketStatus.CLOSED:
         raise HTTPException(
@@ -192,6 +201,8 @@ def update_ticket(
 
     if data.category_id is not None and db.get(Category, data.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    if data.department_id is not None and db.get(Department, data.department_id) is None:
+        raise HTTPException(status_code=404, detail="Department not found")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         old_value = getattr(ticket, field)
