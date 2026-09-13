@@ -1,7 +1,8 @@
+from datetime import datetime, timezone
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
@@ -20,6 +21,7 @@ from app.schemas.ticket import (
     TicketUpdate,
 )
 from app.services.attachment_storage import delete_stored_file
+from app.services.sla import SLAStatus, calculate_sla_due_at
 
 router = APIRouter()
 
@@ -41,7 +43,13 @@ def create_ticket(
     if data.category_id is not None and db.get(Category, data.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    ticket = Ticket(**data.model_dump(), owner_id=current_user.id)
+    created_at = datetime.now(timezone.utc)
+    ticket = Ticket(
+        **data.model_dump(),
+        owner_id=current_user.id,
+        created_at=created_at,
+        sla_due_at=calculate_sla_due_at(created_at, data.priority),
+    )
     db.add(ticket)
     db.flush()
 
@@ -63,6 +71,7 @@ def list_tickets(
     ticket_status: TicketStatus | None = Query(default=None, alias="status"),
     priority: TicketPriority | None = Query(default=None),
     category_id: int | None = Query(default=None, ge=1),
+    sla_status: SLAStatus | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=200),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -85,6 +94,21 @@ def list_tickets(
     if category_id is not None:
         query = query.where(Ticket.category_id == category_id)
 
+    if sla_status is not None:
+        now = datetime.now(timezone.utc)
+        breached = or_(
+            and_(Ticket.closed_at.is_not(None), Ticket.closed_at > Ticket.sla_due_at),
+            and_(Ticket.closed_at.is_(None), Ticket.sla_due_at < now),
+        )
+        met = and_(Ticket.closed_at.is_not(None), Ticket.closed_at <= Ticket.sla_due_at)
+        on_track = and_(Ticket.closed_at.is_(None), Ticket.sla_due_at >= now)
+        sla_filter = {
+            SLAStatus.BREACHED: breached,
+            SLAStatus.MET: met,
+            SLAStatus.ON_TRACK: on_track,
+        }[sla_status]
+        query = query.where(sla_filter)
+
     if search is not None:
         term = search.strip()
         if term:
@@ -102,6 +126,7 @@ def list_tickets(
         TicketSortBy.CREATED_AT: Ticket.created_at,
         TicketSortBy.ID: Ticket.id,
         TicketSortBy.TITLE: Ticket.title,
+        TicketSortBy.SLA_DUE_AT: Ticket.sla_due_at,
     }[sort_by]
 
     order_expression = sort_column.asc() if sort_order == SortOrder.ASC else sort_column.desc()
@@ -184,6 +209,22 @@ def update_ticket(
                 new_value=history_value(value),
             )
         )
+
+        if field == "priority":
+            old_due_at = ticket.sla_due_at
+            new_due_at = calculate_sla_due_at(ticket.created_at, value)
+            if old_due_at != new_due_at:
+                ticket.sla_due_at = new_due_at
+                db.add(
+                    TicketHistory(
+                        ticket_id=ticket.id,
+                        actor_id=current_user.id,
+                        action="SLA_RECALCULATED",
+                        field="sla_due_at",
+                        old_value=history_value(old_due_at),
+                        new_value=history_value(new_due_at),
+                    )
+                )
 
     db.commit()
     db.refresh(ticket)

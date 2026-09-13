@@ -4,12 +4,14 @@ from enum import Enum
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.ticket import TicketPriority, TicketStatus
+from app.services.sla import SLAStatus
 
 
 class TicketSortBy(str, Enum):
     CREATED_AT = "created_at"
     ID = "id"
     TITLE = "title"
+    SLA_DUE_AT = "sla_due_at"
 
 
 class SortOrder(str, Enum):
@@ -35,6 +37,9 @@ class TicketRead(BaseModel):
     assigned_agent_id: int | None
     closed_at: datetime | None
     created_at: datetime
+    sla_due_at: datetime
+    sla_target_hours: int
+    sla_status: SLAStatus
 
     model_config = {"from_attributes": True}
 

@@ -4,6 +4,31 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.3 — Organização (em desenvolvimento)
 
+### V0.3.4 — SLA e prioridade
+
+Cada chamado possui agora um prazo de resolução (`sla_due_at`) calculado a partir da data de criação e da prioridade. Nesta etapa, o SecureDesk usa uma política-base fixa para demonstrar o fluxo de SLA:
+
+- `HIGH`: 4 horas;
+- `MEDIUM`: 8 horas;
+- `LOW`: 24 horas.
+
+O SLA pode assumir três estados:
+
+- `ON_TRACK`: chamado ainda aberto e dentro do prazo;
+- `MET`: chamado fechado dentro do prazo;
+- `BREACHED`: prazo estourado, independentemente de o chamado continuar aberto ou ter sido fechado depois do limite.
+
+`TicketRead` expõe `sla_due_at`, `sla_target_hours` e `sla_status`. Ao mudar a prioridade, o prazo é recalculado sempre a partir de `created_at`, evitando que uma alteração de prioridade reinicie o relógio do SLA. A mudança de prioridade continua registrada como `UPDATED`, e a alteração do prazo gera também `SLA_RECALCULATED` no histórico.
+
+`GET /tickets` aceita ainda:
+
+```text
+?sla_status=BREACHED
+&sort_by=sla_due_at
+```
+
+O cálculo desta versão considera o tempo corrido desde a criação; não há pausa por horário comercial, finais de semana ou reabertura. Essas regras podem evoluir depois para políticas configuráveis.
+
 ### V0.3.3 — Anexos
 
 Chamados podem receber anexos armazenados fora do PostgreSQL. O banco guarda apenas metadados e uma chave aleatória de armazenamento; os bytes ficam no volume persistente `securedesk_attachments` quando a API roda via Docker.
@@ -69,10 +94,11 @@ Parâmetros atuais:
 - `status`: `OPEN`, `IN_PROGRESS` ou `CLOSED`;
 - `priority`: `LOW`, `MEDIUM` ou `HIGH`;
 - `category_id`: identificador de uma categoria;
+- `sla_status`: `ON_TRACK`, `MET` ou `BREACHED`;
 - `search`: busca case-insensitive em título e descrição;
 - `page`: página, começando em 1;
 - `page_size`: quantidade por página, de 1 a 100;
-- `sort_by`: `created_at`, `id` ou `title`;
+- `sort_by`: `created_at`, `id`, `title` ou `sla_due_at`;
 - `sort_order`: `asc` ou `desc`.
 
 Resposta paginada:
@@ -165,6 +191,8 @@ A evolução atual do banco é:
 0007_add_ticket_categories
     ↓
 0008_add_ticket_attachments
+    ↓
+0009_add_ticket_sla
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -265,7 +293,7 @@ docker compose down -v
 ## Evolução planejada
 
 - V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
-- V0.3: consulta, categorias e anexos concluídos; próximos blocos: SLA e departamentos.
+- V0.3: consulta, categorias, anexos e SLA concluídos; próximo bloco: departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

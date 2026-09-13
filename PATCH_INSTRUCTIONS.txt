@@ -1,7 +1,7 @@
-SecureDesk V0.3.3 - Ticket attachments
+SecureDesk V0.3.4 - SLA and priority
 
 1. Apply this patch over the project root while on branch:
-   feat/ticket-attachments
+   feat/ticket-sla
 
 2. Rebuild and start Docker:
    docker compose down
@@ -11,19 +11,29 @@ SecureDesk V0.3.3 - Ticket attachments
    docker compose exec api alembic current
 
    Expected:
-   0008_add_ticket_attachments (head)
+   0009_add_ticket_sla (head)
 
 4. Run tests and lint:
    docker compose exec api pytest -q
    docker compose exec api ruff check .
 
+   Expected baseline:
+   80 passed
+   All checks passed!
+
 5. If everything is green:
    git add .
-   git commit -m "feat: add ticket attachments"
-   git push -u origin feat/ticket-attachments
+   git commit -m "feat: add ticket SLA"
+   git push -u origin feat/ticket-sla
+
+Baseline SLA policy in this version:
+- HIGH: 4 hours
+- MEDIUM: 8 hours
+- LOW: 24 hours
 
 Notes:
-- Docker stores uploaded files in the named volume securedesk_attachments.
-- Do not use `docker compose down -v` unless you intentionally want to erase both PostgreSQL data and uploaded attachments.
-- Allowed baseline types: PDF, PNG, JPEG and plain text/log files.
-- Default size limit: 5 MiB, configurable with ATTACHMENT_MAX_BYTES.
+- sla_due_at is persisted in PostgreSQL and indexed.
+- Changing priority recalculates the deadline from the original created_at; it does not restart the SLA clock.
+- SLA status is ON_TRACK, MET or BREACHED.
+- GET /tickets supports sla_status filtering and sla_due_at ordering.
+- Existing tickets are backfilled by migration 0009 according to their priority and created_at.

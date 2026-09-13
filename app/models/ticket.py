@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.services.sla import SLAStatus, calculate_sla_status, get_sla_target_hours
 
 if TYPE_CHECKING:
     from app.models.attachment import Attachment
@@ -43,6 +44,7 @@ class Ticket(Base):
         index=True,
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sla_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"),
         nullable=True,
@@ -78,3 +80,11 @@ class Ticket(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    @property
+    def sla_target_hours(self) -> int:
+        return get_sla_target_hours(self.priority)
+
+    @property
+    def sla_status(self) -> SLAStatus:
+        return calculate_sla_status(self.sla_due_at, closed_at=self.closed_at)
+
