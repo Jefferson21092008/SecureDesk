@@ -82,8 +82,8 @@ def test_user_cannot_access_comments_from_another_users_ticket(client: TestClien
     )
     read = client.get(f"/tickets/{ticket_id}/comments", headers=auth(other_token))
 
-    assert create.status_code == 403
-    assert read.status_code == 403
+    assert create.status_code == 404
+    assert read.status_code == 404
 
 
 def test_agent_can_comment_on_any_ticket(client: TestClient, db: Session) -> None:

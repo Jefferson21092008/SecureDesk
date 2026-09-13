@@ -96,13 +96,13 @@ def test_user_cannot_access_another_users_attachments(client: TestClient) -> Non
     uploaded = upload_text(client, owner_token, ticket_id)
     attachment_id = uploaded.json()["id"]
 
-    assert client.get(f"/tickets/{ticket_id}/attachments", headers=auth(other_token)).status_code == 403
+    assert client.get(f"/tickets/{ticket_id}/attachments", headers=auth(other_token)).status_code == 404
     assert (
         client.get(
             f"/tickets/{ticket_id}/attachments/{attachment_id}",
             headers=auth(other_token),
         ).status_code
-        == 403
+        == 404
     )
 
 

@@ -6,6 +6,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
+from app.api.ticket_access import get_accessible_ticket
 from app.db import get_db
 from app.models.attachment import Attachment
 from app.models.category import Category
@@ -162,12 +163,7 @@ def get_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Ticket:
-    ticket = db.get(Ticket, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-    if current_user.role == UserRole.USER and ticket.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    return ticket
+    return get_accessible_ticket(ticket_id, current_user, db)
 
 
 @router.patch("/{ticket_id}", response_model=TicketRead)
@@ -177,11 +173,7 @@ def update_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Ticket:
-    ticket = db.get(Ticket, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-    if current_user.role == UserRole.USER and ticket.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    ticket = get_accessible_ticket(ticket_id, current_user, db)
     if current_user.role == UserRole.USER and data.status is not None:
         raise HTTPException(status_code=403, detail="Users cannot change ticket status")
     if current_user.role == UserRole.USER and "department_id" in data.model_fields_set:

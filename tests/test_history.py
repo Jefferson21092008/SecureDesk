@@ -107,7 +107,7 @@ def test_user_cannot_access_another_users_history(client: TestClient) -> None:
         headers=auth(other_token),
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 def test_agent_update_is_recorded_with_agent_as_actor(client: TestClient, db: Session) -> None:
