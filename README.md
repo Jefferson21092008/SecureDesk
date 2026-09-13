@@ -2,9 +2,47 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
-## V0.2 — Atendimento (em desenvolvimento)
+## V0.3 — Organização (em desenvolvimento)
 
-Blocos concluídos até aqui:
+### V0.3.1 — Consulta de chamados
+
+O endpoint `GET /tickets` suporta filtros, busca, paginação e ordenação.
+
+Exemplo:
+
+```text
+GET /tickets?status=OPEN&priority=HIGH&search=vpn&page=1&page_size=20&sort_by=created_at&sort_order=desc
+```
+
+Parâmetros atuais:
+
+- `status`: `OPEN`, `IN_PROGRESS` ou `CLOSED`;
+- `priority`: `LOW`, `MEDIUM` ou `HIGH`;
+- `search`: busca case-insensitive em título e descrição;
+- `page`: página, começando em 1;
+- `page_size`: quantidade por página, de 1 a 100;
+- `sort_by`: `created_at`, `id` ou `title`;
+- `sort_order`: `asc` ou `desc`.
+
+Resposta paginada:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "page_size": 20,
+  "total": 0,
+  "pages": 0
+}
+```
+
+A autorização continua sendo aplicada antes dos filtros: `USER` consulta somente os próprios chamados, enquanto `AGENT` e `ADMIN` podem consultar o conjunto completo permitido pelo papel.
+
+Os chamados agora possuem `created_at`, usado também como ordenação padrão.
+
+## V0.2 — Atendimento (concluída)
+
+Funcionalidades concluídas:
 
 - comentários em chamados;
 - autoria e data/hora dos comentários;
@@ -14,7 +52,7 @@ Blocos concluídos até aqui:
 - fechamento e reabertura controlados de chamados;
 - autorização: `USER` só acessa dados dos próprios chamados; `AGENT` e `ADMIN` podem acessar qualquer chamado.
 
-Rotas adicionadas na V0.2:
+Rotas da V0.2:
 
 - `POST /tickets/{ticket_id}/comments`
 - `GET /tickets/{ticket_id}/comments`
@@ -22,7 +60,6 @@ Rotas adicionadas na V0.2:
 - `PATCH /tickets/{ticket_id}/assignment`
 - `POST /tickets/{ticket_id}/close`
 - `POST /tickets/{ticket_id}/reopen`
-
 
 ### Ciclo de vida do chamado
 
@@ -55,17 +92,11 @@ Regras atuais:
 
 Ao criar um chamado, o sistema registra uma entrada `CREATED`.
 
-Ao alterar um chamado com `PATCH /tickets/{ticket_id}`, cada campo que realmente mudou gera uma entrada `UPDATED` contendo:
-
-- campo alterado;
-- valor anterior;
-- novo valor;
-- usuário que executou a alteração;
-- data/hora.
+Ao alterar um chamado com `PATCH /tickets/{ticket_id}`, cada campo que realmente mudou gera uma entrada `UPDATED` contendo campo alterado, valor anterior, novo valor, usuário que executou a alteração e data/hora.
 
 Enviar novamente o mesmo valor não cria uma entrada falsa de histórico.
 
-A evolução do banco segue migrations incrementais:
+A evolução atual do banco é:
 
 ```text
 0001_initial
@@ -77,6 +108,8 @@ A evolução do banco segue migrations incrementais:
 0004_add_ticket_assignment
     ↓
 0005_ticket_lifecycle
+    ↓
+0006_add_ticket_created_at
 ```
 
 As migrations antigas não são alteradas depois de aplicadas.
@@ -176,8 +209,8 @@ docker compose down -v
 
 ## Evolução planejada
 
-- V0.2: comentários, histórico, atribuição e ciclo de vida implementados; próximo bloco: consolidação do registro de ações.
-- V0.3: filtros, paginação, busca, ordenação, anexos, categorias, SLA e departamentos.
+- V0.2: atendimento concluído com comentários, histórico, atribuição e ciclo de vida.
+- V0.3: consulta de chamados em andamento; próximos blocos: categorias, anexos, SLA e departamentos.
 - V0.4: auditoria, rate limiting, validação rigorosa, secrets, melhoria do JWT, revogação, políticas de senha, proteção contra IDOR e testes de autorização.
 - V0.5: métricas/dashboard.
 - V1.0: documentação completa, frontend e deploy.

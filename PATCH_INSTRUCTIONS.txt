@@ -1,4 +1,27 @@
-SecureDesk V0.2 - Patch 0005: ticket lifecycle
+SecureDesk V0.3.1 - Patch 0006: ticket querying
+
+Este patch inicia a V0.3 - Organizacao.
+
+Inclui:
+- filtro por status;
+- filtro por prioridade;
+- busca case-insensitive em titulo e descricao;
+- paginacao com metadados;
+- ordenacao por created_at, id ou title;
+- limite maximo de 100 itens por pagina;
+- campo created_at nos chamados;
+- migration 0006_add_ticket_created_at;
+- testes de autorizacao para garantir que filtros/busca nao vazem chamados de outros usuarios.
+
+IMPORTANTE:
+GET /tickets agora retorna um objeto paginado no formato:
+{
+  "items": [...],
+  "page": 1,
+  "page_size": 20,
+  "total": 42,
+  "pages": 3
+}
 
 1. Extraia este patch na raiz do projeto SecureDesk, substituindo os arquivos existentes.
 2. Nao use docker compose down -v.
@@ -11,6 +34,6 @@ SecureDesk V0.2 - Patch 0005: ticket lifecycle
    docker compose exec api ruff check .
 
 Esperado:
-- migration: 0005_ticket_lifecycle (head)
-- testes: 38 passed
+- migration: 0006_add_ticket_created_at (head)
+- testes: 48 passed
 - Ruff: All checks passed!
