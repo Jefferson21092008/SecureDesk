@@ -1,13 +1,13 @@
-SecureDesk V0.4.3 — Rate limiting e proteção contra abuso
-=========================================================
+SecureDesk V0.4.4 — Audit log de segurança
+==========================================
 
-Este patch deve ser aplicado sobre a V0.4.2 concluída.
-Esta etapa NÃO cria migration. O head continua sendo 0011_add_revoked_tokens.
+Este patch deve ser aplicado sobre a V0.4.3 concluída.
+Esta etapa cria a migration 0012_add_security_audit_logs.
 
 1. Confirme que a main está atualizada e crie a branch:
    git checkout main
    git pull origin main
-   git checkout -b security/rate-limiting
+   git checkout -b security/audit-log
 
 2. Extraia o conteúdo deste ZIP na raiz do SecureDesk, substituindo os arquivos existentes.
 
@@ -19,13 +19,13 @@ Esta etapa NÃO cria migration. O head continua sendo 0011_add_revoked_tokens.
    docker compose exec api alembic current
 
    Esperado:
-   0011_add_revoked_tokens (head)
+   0012_add_security_audit_logs (head)
 
 5. Rode os testes:
    docker compose exec api pytest -q
 
    Esperado nesta versão:
-   128 passed
+   140 passed
 
 6. Rode o lint:
    docker compose exec api ruff check .
@@ -35,16 +35,17 @@ Esta etapa NÃO cria migration. O head continua sendo 0011_add_revoked_tokens.
 
 7. Se tudo estiver verde:
    git add .
-   git commit -m "security: add rate limiting and abuse protection"
-   git push -u origin security/rate-limiting
+   git commit -m "security: add security audit logging"
+   git push -u origin security/audit-log
 
 Principais controles adicionados:
-- limite global por cliente em janela deslizante;
-- limite próprio para login e cadastro;
-- bloqueio temporário após falhas repetidas de login;
-- sucesso de login limpa o contador de falhas da conta/cliente;
-- respostas 429 incluem Retry-After e metadados de limite;
-- /health não consome quota do limiter;
-- X-Forwarded-For não é confiado sem proxy explicitamente confiável;
-- parâmetros de rate limiting configuráveis por variáveis de ambiente;
-- contadores em memória, adequados ao processo único atual; produção multi-worker deve usar backend compartilhado.
+- tabela append-only pela API para eventos de segurança;
+- auditoria de criação de conta, login com sucesso/falha e logout;
+- auditoria de rate limit global e dos endpoints de autenticação;
+- registro de respostas 401/403 fora do login;
+- actor_id quando existe usuário autenticado;
+- IP, User-Agent, método, caminho, status e detalhes mínimos do evento;
+- senha e JWT Bearer bruto nunca são gravados no audit log;
+- GET /security/audit somente para ADMIN;
+- filtros por event_type, actor_id e status_code, com paginação;
+- logs de segurança permanecem separados do histórico funcional dos chamados.

@@ -19,6 +19,7 @@ from app.db import get_db
 from app.models.revoked_token import RevokedToken
 from app.models.user import User, UserRole
 from app.schemas.auth import Token, UserCreate, UserRead
+from app.services.security_audit import SecurityEventType, add_security_event
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -39,6 +40,26 @@ def unauthorized() -> HTTPException:
     )
 
 
+def _persist_auth_event(
+    db: Session,
+    request: Request,
+    event_type: SecurityEventType,
+    *,
+    actor_id: int | None = None,
+    status_code: int | None = None,
+    details: dict[str, object] | None = None,
+) -> None:
+    add_security_event(
+        db,
+        request,
+        event_type,
+        actor_id=actor_id,
+        status_code=status_code,
+        details=details,
+    )
+    db.commit()
+
+
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(request: Request, data: UserCreate, db: Session = Depends(get_db)) -> User:
     decision = rate_limiter.consume(
@@ -47,6 +68,13 @@ def register(request: Request, data: UserCreate, db: Session = Depends(get_db)) 
         window_seconds=settings.auth_rate_limit_window_seconds,
     )
     if not decision.allowed:
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"scope": "register", "retry_after": decision.retry_after},
+        )
         raise rate_limit_exception("Too many registration attempts", decision)
 
     existing = db.scalar(select(User).where(User.email == data.email))
@@ -59,6 +87,15 @@ def register(request: Request, data: UserCreate, db: Session = Depends(get_db)) 
         role=UserRole.USER,
     )
     db.add(user)
+    db.flush()
+    add_security_event(
+        db,
+        request,
+        SecurityEventType.ACCOUNT_CREATED,
+        actor_id=user.id,
+        status_code=status.HTTP_201_CREATED,
+        details={"role": user.role.value},
+    )
     db.commit()
     db.refresh(user)
     return user
@@ -77,21 +114,47 @@ def login(
         window_seconds=settings.auth_rate_limit_window_seconds,
     )
     if not endpoint_decision.allowed:
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"scope": "login_endpoint", "retry_after": endpoint_decision.retry_after},
+        )
         raise rate_limit_exception("Too many login attempts", endpoint_decision)
 
-    failure_key = f"auth:login-failure:{ip}:{identifier_digest(form_data.username)}"
+    identifier_hash = identifier_digest(form_data.username)
+    failure_key = f"auth:login-failure:{ip}:{identifier_hash}"
     failure_decision = rate_limiter.inspect(
         key=failure_key,
         limit=settings.login_failure_limit,
         window_seconds=settings.login_failure_window_seconds,
     )
     if not failure_decision.allowed:
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={
+                "scope": "login_failures",
+                "identifier_hash": identifier_hash,
+                "retry_after": failure_decision.retry_after,
+            },
+        )
         raise rate_limit_exception("Too many failed login attempts", failure_decision)
 
     try:
         email = str(email_adapter.validate_python(form_data.username))
     except ValidationError:
         rate_limiter.record(failure_key, settings.login_failure_window_seconds)
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.LOGIN_FAILED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details={"identifier_hash": identifier_hash, "reason": "invalid_credentials"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -101,6 +164,14 @@ def login(
     user = db.scalar(select(User).where(User.email == email))
     if not user or not verify_password(form_data.password, user.password_hash):
         rate_limiter.record(failure_key, settings.login_failure_window_seconds)
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.LOGIN_FAILED,
+            actor_id=user.id if user else None,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details={"identifier_hash": identifier_hash, "reason": "invalid_credentials"},
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -108,13 +179,22 @@ def login(
         )
 
     rate_limiter.clear(failure_key)
+    token = create_access_token(str(user.id))
+    _persist_auth_event(
+        db,
+        request,
+        SecurityEventType.LOGIN_SUCCESS,
+        actor_id=user.id,
+        status_code=status.HTTP_200_OK,
+    )
     return Token(
-        access_token=create_access_token(str(user.id)),
+        access_token=token,
         expires_in=settings.access_token_minutes * 60,
     )
 
 
 def get_auth_context(
+    request: Request,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> AuthContext:
@@ -131,6 +211,7 @@ def get_auth_context(
     if not user:
         raise unauthorized()
 
+    request.state.audit_actor_id = user.id
     return AuthContext(user=user, claims=claims)
 
 
@@ -140,6 +221,7 @@ def get_current_user(context: AuthContext = Depends(get_auth_context)) -> User:
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
+    request: Request,
     context: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -149,6 +231,14 @@ def logout(
             user_id=context.user.id,
             expires_at=context.claims.expires_at,
         )
+    )
+    add_security_event(
+        db,
+        request,
+        SecurityEventType.LOGOUT,
+        actor_id=context.user.id,
+        status_code=status.HTTP_204_NO_CONTENT,
+        details={"revoked_jti": context.claims.jti},
     )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
