@@ -30,5 +30,9 @@ class User(Base):
         back_populates="owner",
         foreign_keys="Ticket.owner_id",
     )
+    assigned_tickets: Mapped[list["Ticket"]] = relationship(
+        back_populates="assigned_agent",
+        foreign_keys="Ticket.assigned_agent_id",
+    )
     comments: Mapped[list["Comment"]] = relationship(back_populates="author")
     history_entries: Mapped[list["TicketHistory"]] = relationship(back_populates="actor")
