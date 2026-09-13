@@ -99,7 +99,10 @@ def download_attachment(
 ) -> FileResponse:
     get_accessible_ticket(ticket_id, current_user, db)
     attachment = _get_attachment(ticket_id, attachment_id, db)
-    path = attachment_path(attachment.storage_key)
+    try:
+        path = attachment_path(attachment.storage_key)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Attachment file not found") from None
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Attachment file not found")
 

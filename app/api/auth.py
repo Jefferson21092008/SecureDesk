@@ -14,7 +14,14 @@ from app.core.rate_limit import (
     rate_limit_exception,
     rate_limiter,
 )
-from app.core.security import AccessTokenClaims, create_access_token, decode_access_token, hash_password, verify_password
+from app.core.security import (
+    DUMMY_PASSWORD_HASH,
+    AccessTokenClaims,
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 from app.db import get_db
 from app.models.revoked_token import RevokedToken
 from app.models.user import User, UserRole
@@ -24,6 +31,8 @@ from app.services.security_audit import SecurityEventType, add_security_event
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 email_adapter = TypeAdapter(EmailStr)
+MAX_LOGIN_IDENTIFIER_LENGTH = 254
+MAX_LOGIN_PASSWORD_LENGTH = 128
 
 
 @dataclass(frozen=True)
@@ -123,7 +132,10 @@ def login(
         )
         raise rate_limit_exception("Too many login attempts", endpoint_decision)
 
-    identifier_hash = identifier_digest(form_data.username)
+    # Bound attacker-controlled credential input before invoking the expensive
+    # password hasher. The registration policy already caps real passwords at
+    # 128 characters, so longer login values can never be valid credentials.
+    identifier_hash = identifier_digest(form_data.username[:512])
     failure_key = f"auth:login-failure:{ip}:{identifier_hash}"
     failure_decision = rate_limiter.inspect(
         key=failure_key,
@@ -144,6 +156,24 @@ def login(
         )
         raise rate_limit_exception("Too many failed login attempts", failure_decision)
 
+    if (
+        len(form_data.username) > MAX_LOGIN_IDENTIFIER_LENGTH
+        or len(form_data.password) > MAX_LOGIN_PASSWORD_LENGTH
+    ):
+        rate_limiter.record(failure_key, settings.login_failure_window_seconds)
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.LOGIN_FAILED,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            details={"identifier_hash": identifier_hash, "reason": "invalid_credentials"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         email = str(email_adapter.validate_python(form_data.username)).strip().lower()
     except ValidationError:
@@ -162,7 +192,9 @@ def login(
         ) from None
 
     user = db.scalar(select(User).where(User.email == email))
-    if not user or not verify_password(form_data.password, user.password_hash):
+    candidate_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    password_matches = verify_password(form_data.password, candidate_hash)
+    if user is None or not password_matches:
         rate_limiter.record(failure_key, settings.login_failure_window_seconds)
         _persist_auth_event(
             db,
