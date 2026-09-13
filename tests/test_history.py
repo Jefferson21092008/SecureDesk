@@ -71,7 +71,7 @@ def test_patch_registers_changed_fields_with_old_and_new_values(client: TestClie
     assert response.status_code == 200
 
     history = response.json()
-    assert len(history) == 3
+    assert len(history) == 4
     updates = {item["field"]: item for item in history if item["action"] == "UPDATED"}
 
     assert updates["title"]["old_value"] == "Printer offline"

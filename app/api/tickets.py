@@ -1,13 +1,15 @@
+from datetime import datetime, timezone
 from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
 from app.models.attachment import Attachment
 from app.models.category import Category
+from app.models.department import Department
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
@@ -20,6 +22,7 @@ from app.schemas.ticket import (
     TicketUpdate,
 )
 from app.services.attachment_storage import delete_stored_file
+from app.services.sla import SLAStatus, calculate_sla_due_at
 
 router = APIRouter()
 
@@ -40,8 +43,16 @@ def create_ticket(
 ) -> Ticket:
     if data.category_id is not None and db.get(Category, data.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    if data.department_id is not None and db.get(Department, data.department_id) is None:
+        raise HTTPException(status_code=404, detail="Department not found")
 
-    ticket = Ticket(**data.model_dump(), owner_id=current_user.id)
+    created_at = datetime.now(timezone.utc)
+    ticket = Ticket(
+        **data.model_dump(),
+        owner_id=current_user.id,
+        created_at=created_at,
+        sla_due_at=calculate_sla_due_at(created_at, data.priority),
+    )
     db.add(ticket)
     db.flush()
 
@@ -63,6 +74,8 @@ def list_tickets(
     ticket_status: TicketStatus | None = Query(default=None, alias="status"),
     priority: TicketPriority | None = Query(default=None),
     category_id: int | None = Query(default=None, ge=1),
+    department_id: int | None = Query(default=None, ge=1),
+    sla_status: SLAStatus | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=200),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -85,6 +98,24 @@ def list_tickets(
     if category_id is not None:
         query = query.where(Ticket.category_id == category_id)
 
+    if department_id is not None:
+        query = query.where(Ticket.department_id == department_id)
+
+    if sla_status is not None:
+        now = datetime.now(timezone.utc)
+        breached = or_(
+            and_(Ticket.closed_at.is_not(None), Ticket.closed_at > Ticket.sla_due_at),
+            and_(Ticket.closed_at.is_(None), Ticket.sla_due_at < now),
+        )
+        met = and_(Ticket.closed_at.is_not(None), Ticket.closed_at <= Ticket.sla_due_at)
+        on_track = and_(Ticket.closed_at.is_(None), Ticket.sla_due_at >= now)
+        sla_filter = {
+            SLAStatus.BREACHED: breached,
+            SLAStatus.MET: met,
+            SLAStatus.ON_TRACK: on_track,
+        }[sla_status]
+        query = query.where(sla_filter)
+
     if search is not None:
         term = search.strip()
         if term:
@@ -102,6 +133,7 @@ def list_tickets(
         TicketSortBy.CREATED_AT: Ticket.created_at,
         TicketSortBy.ID: Ticket.id,
         TicketSortBy.TITLE: Ticket.title,
+        TicketSortBy.SLA_DUE_AT: Ticket.sla_due_at,
     }[sort_by]
 
     order_expression = sort_column.asc() if sort_order == SortOrder.ASC else sort_column.desc()
@@ -152,6 +184,8 @@ def update_ticket(
         raise HTTPException(status_code=403, detail="Forbidden")
     if current_user.role == UserRole.USER and data.status is not None:
         raise HTTPException(status_code=403, detail="Users cannot change ticket status")
+    if current_user.role == UserRole.USER and "department_id" in data.model_fields_set:
+        raise HTTPException(status_code=403, detail="Users cannot change ticket department")
 
     if data.status == TicketStatus.CLOSED:
         raise HTTPException(
@@ -167,6 +201,8 @@ def update_ticket(
 
     if data.category_id is not None and db.get(Category, data.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
+    if data.department_id is not None and db.get(Department, data.department_id) is None:
+        raise HTTPException(status_code=404, detail="Department not found")
 
     for field, value in data.model_dump(exclude_unset=True).items():
         old_value = getattr(ticket, field)
@@ -184,6 +220,22 @@ def update_ticket(
                 new_value=history_value(value),
             )
         )
+
+        if field == "priority":
+            old_due_at = ticket.sla_due_at
+            new_due_at = calculate_sla_due_at(ticket.created_at, value)
+            if old_due_at != new_due_at:
+                ticket.sla_due_at = new_due_at
+                db.add(
+                    TicketHistory(
+                        ticket_id=ticket.id,
+                        actor_id=current_user.id,
+                        action="SLA_RECALCULATED",
+                        field="sla_due_at",
+                        old_value=history_value(old_due_at),
+                        new_value=history_value(new_due_at),
+                    )
+                )
 
     db.commit()
     db.refresh(ticket)
