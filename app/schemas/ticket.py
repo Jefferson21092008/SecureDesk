@@ -21,6 +21,7 @@ class TicketCreate(BaseModel):
     title: str = Field(min_length=3, max_length=160)
     description: str = Field(min_length=3, max_length=5000)
     priority: TicketPriority = TicketPriority.MEDIUM
+    category_id: int | None = Field(default=None, ge=1)
 
 
 class TicketRead(BaseModel):
@@ -30,6 +31,7 @@ class TicketRead(BaseModel):
     status: TicketStatus
     priority: TicketPriority
     owner_id: int
+    category_id: int | None
     assigned_agent_id: int | None
     closed_at: datetime | None
     created_at: datetime
@@ -50,10 +52,15 @@ class TicketUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=3, max_length=5000)
     priority: TicketPriority | None = None
     status: TicketStatus | None = None
+    category_id: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def reject_explicit_nulls(self) -> "TicketUpdate":
-        null_fields = [field for field in self.model_fields_set if getattr(self, field) is None]
+        null_fields = [
+            field
+            for field in self.model_fields_set
+            if field != "category_id" and getattr(self, field) is None
+        ]
         if null_fields:
             raise ValueError(f"Fields cannot be null: {', '.join(sorted(null_fields))}")
         return self
