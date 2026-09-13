@@ -1,10 +1,13 @@
-SecureDesk V0.3.5 — Departamentos
-=================================
+SecureDesk V0.4.2 — JWT, expiração e revogação
+==============================================
 
-Este patch deve ser aplicado sobre a V0.3.4 já concluída (head 0009_add_ticket_sla).
+Este patch deve ser aplicado sobre a V0.4.1 concluída.
+A nova migration é 0011_add_revoked_tokens.
 
-1. Crie a branch:
-   git checkout -b feat/ticket-departments
+1. Confirme que a main está atualizada e crie a branch:
+   git checkout main
+   git pull origin main
+   git checkout -b security/jwt-revocation
 
 2. Extraia o conteúdo deste ZIP na raiz do SecureDesk, substituindo os arquivos existentes.
 
@@ -16,13 +19,13 @@ Este patch deve ser aplicado sobre a V0.3.4 já concluída (head 0009_add_ticket
    docker compose exec api alembic current
 
    Esperado:
-   0010_add_ticket_departments (head)
+   0011_add_revoked_tokens (head)
 
 5. Rode os testes:
    docker compose exec api pytest -q
 
    Esperado nesta versão:
-   91 passed
+   117 passed
 
 6. Rode o lint:
    docker compose exec api ruff check .
@@ -32,14 +35,16 @@ Este patch deve ser aplicado sobre a V0.3.4 já concluída (head 0009_add_ticket
 
 7. Se tudo estiver verde:
    git add .
-   git commit -m "feat: add ticket departments"
-   git push -u origin feat/ticket-departments
+   git commit -m "security: add JWT revocation"
+   git push -u origin security/jwt-revocation
 
-Principais regras:
-- somente ADMIN gerencia a lista de departamentos;
-- qualquer usuário autenticado pode consultar departamentos;
-- USER escolhe departamento na criação, mas não pode redirecionar o chamado depois;
-- AGENT e ADMIN podem alterar/remover department_id;
-- GET /tickets aceita department_id como filtro;
-- mudanças entram no histórico;
-- departamento em uso não pode ser excluído.
+Principais controles adicionados:
+- JWT exige sub, jti, type, iat, exp, iss e aud;
+- algoritmo de assinatura continua fixado pelo servidor;
+- cada login gera um jti único;
+- POST /auth/logout revoga o token atual;
+- a blacklist grava o jti, nunca o JWT bruto;
+- token revogado é rejeitado como inválido/expirado;
+- revogação de uma sessão não encerra outras sessões;
+- login retorna expires_in para o cliente;
+- migration 0011_add_revoked_tokens adiciona persistência da blacklist.

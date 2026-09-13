@@ -9,6 +9,7 @@ from app.db import Base
 if TYPE_CHECKING:
     from app.models.attachment import Attachment
     from app.models.comment import Comment
+    from app.models.revoked_token import RevokedToken
     from app.models.ticket import Ticket
     from app.models.ticket_history import TicketHistory
 
@@ -38,3 +39,7 @@ class User(Base):
     comments: Mapped[list["Comment"]] = relationship(back_populates="author")
     uploaded_attachments: Mapped[list["Attachment"]] = relationship(back_populates="uploader")
     history_entries: Mapped[list["TicketHistory"]] = relationship(back_populates="actor")
+    revoked_tokens: Mapped[list["RevokedToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
