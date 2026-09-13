@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
@@ -8,12 +10,28 @@ from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.user import User, UserRole
 from app.schemas.metrics import (
     MetricsScope,
+    SLAClosedMetrics,
+    SLAStatusCounts,
     TicketMetricsOverview,
     TicketPriorityCounts,
+    TicketSLAMetrics,
     TicketStatusCounts,
 )
 
 router = APIRouter()
+
+
+def _apply_ticket_scope(query, current_user: User):
+    if current_user.role == UserRole.USER:
+        return query.where(Ticket.owner_id == current_user.id), MetricsScope.OWN
+    return query, MetricsScope.GLOBAL
+
+
+def _resolution_seconds_expression(db: Session):
+    dialect_name = db.get_bind().dialect.name
+    if dialect_name == "sqlite":
+        return (func.julianday(Ticket.closed_at) - func.julianday(Ticket.created_at)) * 86400.0
+    return func.extract("epoch", Ticket.closed_at - Ticket.created_at)
 
 
 @router.get("/overview", response_model=TicketMetricsOverview)
@@ -35,11 +53,7 @@ def ticket_metrics_overview(
         func.sum(case((Ticket.priority == TicketPriority.HIGH, 1), else_=0)).label("priority_high"),
     )
 
-    scope = MetricsScope.GLOBAL
-    if current_user.role == UserRole.USER:
-        query = query.where(Ticket.owner_id == current_user.id)
-        scope = MetricsScope.OWN
-
+    query, scope = _apply_ticket_scope(query, current_user)
     counts = db.execute(query).mappings().one()
 
     return TicketMetricsOverview(
@@ -55,4 +69,64 @@ def ticket_metrics_overview(
             medium=int(counts["priority_medium"] or 0),
             high=int(counts["priority_high"] or 0),
         ),
+    )
+
+
+@router.get("/sla", response_model=TicketSLAMetrics)
+def ticket_sla_metrics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketSLAMetrics:
+    now = datetime.now(timezone.utc)
+
+    met = (Ticket.closed_at.is_not(None)) & (Ticket.closed_at <= Ticket.sla_due_at)
+    closed_breached = (Ticket.closed_at.is_not(None)) & (Ticket.closed_at > Ticket.sla_due_at)
+    open_breached = (Ticket.closed_at.is_(None)) & (Ticket.sla_due_at < now)
+    breached = or_(closed_breached, open_breached)
+    on_track = (Ticket.closed_at.is_(None)) & (Ticket.sla_due_at >= now)
+    closed = Ticket.closed_at.is_not(None)
+
+    resolution_seconds = _resolution_seconds_expression(db)
+
+    query = select(
+        func.count(Ticket.id).label("total"),
+        func.sum(case((on_track, 1), else_=0)).label("on_track"),
+        func.sum(case((met, 1), else_=0)).label("met"),
+        func.sum(case((breached, 1), else_=0)).label("breached"),
+        func.sum(case((closed, 1), else_=0)).label("closed_total"),
+        func.sum(case((closed_breached, 1), else_=0)).label("closed_breached"),
+        func.avg(case((closed, resolution_seconds))).label("avg_resolution_seconds"),
+    )
+
+    query, scope = _apply_ticket_scope(query, current_user)
+    counts = db.execute(query).mappings().one()
+
+    total = int(counts["total"] or 0)
+    met_count = int(counts["met"] or 0)
+    closed_total = int(counts["closed_total"] or 0)
+    closed_breached_count = int(counts["closed_breached"] or 0)
+
+    compliance_rate = None
+    if closed_total:
+        compliance_rate = round((met_count / closed_total) * 100, 2)
+
+    average_resolution_hours = None
+    if counts["avg_resolution_seconds"] is not None:
+        average_resolution_hours = round(float(counts["avg_resolution_seconds"]) / 3600, 2)
+
+    return TicketSLAMetrics(
+        scope=scope,
+        total=total,
+        by_sla_status=SLAStatusCounts(
+            on_track=int(counts["on_track"] or 0),
+            met=met_count,
+            breached=int(counts["breached"] or 0),
+        ),
+        closed=SLAClosedMetrics(
+            total=closed_total,
+            met=met_count,
+            breached=closed_breached_count,
+            compliance_rate_percent=compliance_rate,
+        ),
+        average_resolution_hours=average_resolution_hours,
     )

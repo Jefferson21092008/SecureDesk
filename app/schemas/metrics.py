@@ -25,3 +25,24 @@ class TicketMetricsOverview(BaseModel):
     total: int
     by_status: TicketStatusCounts
     by_priority: TicketPriorityCounts
+
+
+class SLAStatusCounts(BaseModel):
+    on_track: int
+    met: int
+    breached: int
+
+
+class SLAClosedMetrics(BaseModel):
+    total: int
+    met: int
+    breached: int
+    compliance_rate_percent: float | None
+
+
+class TicketSLAMetrics(BaseModel):
+    scope: MetricsScope
+    total: int
+    by_sla_status: SLAStatusCounts
+    closed: SLAClosedMetrics
+    average_resolution_hours: float | None
