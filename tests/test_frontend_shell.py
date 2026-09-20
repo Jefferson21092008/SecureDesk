@@ -19,18 +19,13 @@ def test_frontend_shell_files_exist() -> None:
         assert expected <= {path.name for path in FRONTEND.iterdir()}
         return
 
-    # The API image intentionally does not copy the frontend source tree.
-    # Under Docker Compose, validate the built frontend service instead.
     assert "SecureDesk" in _served_text("/")
     assert _served_text("/styles.css").strip()
     assert _served_text("/app.js").strip()
 
 
 def test_frontend_is_self_contained() -> None:
-    if FRONTEND.exists():
-        index = (FRONTEND / "index.html").read_text(encoding="utf-8")
-    else:
-        index = _served_text("/")
+    index = (FRONTEND / "index.html").read_text(encoding="utf-8") if FRONTEND.exists() else _served_text("/")
 
     assert 'href="/styles.css"' in index
     assert 'src="/app.js"' in index
@@ -46,6 +41,25 @@ def test_frontend_is_exposed_by_compose() -> None:
         assert '"3000:80"' in compose
         return
 
-    # Inside the API container the compose file is intentionally absent,
-    # so verify that Compose networking exposes the frontend service.
     assert "SecureDesk" in _served_text("/")
+
+
+def test_frontend_proxies_api_through_same_origin() -> None:
+    if FRONTEND.exists():
+        nginx = (FRONTEND / "nginx.conf").read_text(encoding="utf-8")
+        assert "location /api/" in nginx
+        assert "proxy_pass http://api:8000/;" in nginx
+        return
+
+    assert '"status":"ok"' in _served_text("/api/health")
+
+
+def test_frontend_uses_real_api_session() -> None:
+    app_js = (FRONTEND / "app.js").read_text(encoding="utf-8") if FRONTEND.exists() else _served_text("/app.js")
+    index = (FRONTEND / "index.html").read_text(encoding="utf-8") if FRONTEND.exists() else _served_text("/")
+
+    assert 'const API_BASE = "/api";' in app_js
+    assert "sessionStorage" in app_js
+    assert 'apiRequest("/auth/login"' in app_js
+    assert 'apiRequest("/auth/me"' in app_js
+    assert "modo demonstração" not in index.lower()

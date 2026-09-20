@@ -24,14 +24,13 @@
           <div class="mobile-brand"><div class="brand-mark">SD</div><strong>SecureDesk</strong></div>
           <p class="eyebrow">BEM-VINDO</p>
           <h2>Entrar no SecureDesk</h2>
-          <p class="muted">Nesta etapa, o frontend usa dados de demonstração. A API real será conectada na V1.0.4.</p>
+          <p class="muted">Use uma conta cadastrada na API. A sessão usa JWT real e respeita as permissões do seu perfil.</p>
           <form id="login-form" class="form-stack">
-            <label><span>E-mail</span><input id="login-email" type="email" value="admin@securedesk.dev" autocomplete="username" required /></label>
-            <label><span>Senha</span><input id="login-password" type="password" value="SecureDesk!2026" autocomplete="current-password" required /></label>
-            <label><span>Perfil de demonstração</span><select id="demo-role"><option value="ADMIN">Administrador</option><option value="AGENT">Agente</option><option value="USER">Usuário</option></select></label>
-            <button class="button button--primary" type="submit">Entrar no modo demonstração</button>
+            <label><span>E-mail</span><input id="login-email" type="email" autocomplete="username" placeholder="voce@empresa.com" required /></label>
+            <label><span>Senha</span><input id="login-password" type="password" autocomplete="current-password" placeholder="Sua senha" required /></label>
+            <button id="login-button" class="button button--primary" type="submit">Entrar</button>
           </form>
-          <p class="login-footnote">Nenhuma credencial é enviada para a API nesta versão.</p>
+          <p id="login-message" class="login-footnote">A autenticação é feita pela API do SecureDesk.</p>
         </div>
       </section>
     </main>
@@ -52,21 +51,21 @@
         <header class="topbar">
           <button id="menu-button" class="menu-button" aria-label="Abrir menu">☰</button>
           <div><p id="page-eyebrow" class="eyebrow">OPERAÇÃO</p><h1 id="page-title">Visão geral</h1></div>
-          <div class="topbar-actions"><button id="new-ticket-button" class="button button--primary">+ Novo chamado</button><div class="user-chip"><div class="avatar">JR</div><div><strong>Jefferson</strong><span id="role-label">Administrador</span></div></div></div>
+          <div class="topbar-actions"><button id="new-ticket-button" class="button button--primary">+ Novo chamado</button><div class="user-chip"><div id="user-avatar" class="avatar">SD</div><div><strong id="user-email">Conta</strong><span id="role-label">Perfil</span></div></div></div>
         </header>
 
         <div class="content-area">
           <section id="view-overview" class="page-view">
             <div class="welcome-row"><div><h2>Resumo operacional</h2><p class="muted">Acompanhe o estado atual da central de atendimento.</p></div><div class="period-chip">Últimos 30 dias</div></div>
             <div class="metric-grid">
-              <article class="metric-card"><div class="metric-top"><span>Total de chamados</span><span class="metric-symbol">▤</span></div><strong>48</strong><small>+12% vs. período anterior</small></article>
-              <article class="metric-card"><div class="metric-top"><span>Em andamento</span><span class="metric-symbol">◌</span></div><strong>14</strong><small>29% do volume atual</small></article>
-              <article class="metric-card"><div class="metric-top"><span>SLA cumprido</span><span class="metric-symbol">✓</span></div><strong>92%</strong><small>2 chamados fora do prazo</small></article>
-              <article class="metric-card"><div class="metric-top"><span>Tempo médio</span><span class="metric-symbol">◷</span></div><strong>5,8h</strong><small>Resolução de chamados fechados</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Total de chamados</span><span class="metric-symbol">▤</span></div><strong id="overview-total">—</strong><small id="overview-total-detail">Carregando dados da API</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Em andamento</span><span class="metric-symbol">◌</span></div><strong id="overview-in-progress">—</strong><small id="overview-progress-detail">Carregando dados da API</small></article>
+              <article class="metric-card"><div class="metric-top"><span>SLA cumprido</span><span class="metric-symbol">✓</span></div><strong id="overview-sla">—</strong><small id="overview-sla-detail">Carregando dados da API</small></article>
+              <article class="metric-card"><div class="metric-top"><span>Tempo médio</span><span class="metric-symbol">◷</span></div><strong id="overview-average">—</strong><small>Resolução de chamados fechados</small></article>
             </div>
             <div class="dashboard-grid">
-              <article class="panel"><div class="panel-header"><div><h3>Chamados por prioridade</h3><p>Distribuição do volume atual</p></div></div><div class="bar-list"><div class="bar-row"><span>Alta</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><strong>18</strong></div><div class="bar-row"><span>Média</span><div class="bar-track"><div class="bar-fill" style="width:54%"></div></div><strong>26</strong></div><div class="bar-row"><span>Baixa</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><strong>8</strong></div></div></article>
-              <article class="panel"><div class="panel-header"><div><h3>SLA</h3><p>Desempenho de atendimento</p></div></div><div class="sla-ring" aria-label="92 por cento de SLA cumprido"><div class="sla-ring__inner"><strong>92%</strong><span>cumprido</span></div></div><div class="legend-row"><span><i class="dot dot--ok"></i>No prazo</span><span><i class="dot dot--danger"></i>Estourado</span></div></article>
+              <article class="panel"><div class="panel-header"><div><h3>Chamados por prioridade</h3><p>Distribuição do volume atual</p></div></div><div class="bar-list"><div class="bar-row"><span>Alta</span><div class="bar-track"><div id="priority-high-bar" class="bar-fill" style="width:0%"></div></div><strong id="priority-high-count">0</strong></div><div class="bar-row"><span>Média</span><div class="bar-track"><div id="priority-medium-bar" class="bar-fill" style="width:0%"></div></div><strong id="priority-medium-count">0</strong></div><div class="bar-row"><span>Baixa</span><div class="bar-track"><div id="priority-low-bar" class="bar-fill" style="width:0%"></div></div><strong id="priority-low-count">0</strong></div></div></article>
+              <article class="panel"><div class="panel-header"><div><h3>SLA</h3><p>Desempenho de atendimento</p></div></div><div id="overview-sla-ring" class="sla-ring" aria-label="SLA cumprido"><div class="sla-ring__inner"><strong id="overview-sla-ring-value">—</strong><span>cumprido</span></div></div><div class="legend-row"><span><i class="dot dot--ok"></i>No prazo</span><span><i class="dot dot--danger"></i>Estourado</span></div></article>
             </div>
             <article class="panel panel--table"><div class="panel-header panel-header--row"><div><h3>Chamados recentes</h3><p>Últimas movimentações da central</p></div><button class="link-button" data-go="tickets">Ver todos</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Título</th><th>Prioridade</th><th>Status</th><th>Responsável</th><th>SLA</th></tr></thead><tbody id="recent-ticket-rows"></tbody></table></div></article>
           </section>
@@ -77,20 +76,20 @@
           </section>
 
           <section id="view-metrics" class="page-view hidden">
-            <div class="welcome-row"><div><h2>Métricas operacionais</h2><p class="muted">Visão consolidada para acompanhamento do serviço.</p></div><div class="period-controls"><input type="date" value="2026-09-01" /><span>até</span><input type="date" value="2026-09-30" /></div></div>
-            <div class="metric-grid metric-grid--three"><article class="metric-card"><div class="metric-top"><span>SLA no prazo</span></div><strong>33</strong><small>Tickets ativos ou fechados dentro do prazo</small></article><article class="metric-card"><div class="metric-top"><span>SLA estourado</span></div><strong>3</strong><small>Requer atenção operacional</small></article><article class="metric-card"><div class="metric-top"><span>Fechados</span></div><strong>21</strong><small>92% de compliance</small></article></div>
+            <div class="welcome-row"><div><h2>Métricas operacionais</h2><p class="muted">Visão consolidada para acompanhamento do serviço.</p></div><div class="period-controls"><input id="metrics-date-from" type="date" aria-label="Data inicial" /><span>até</span><input id="metrics-date-to" type="date" aria-label="Data final" /></div></div>
+            <div class="metric-grid metric-grid--three"><article class="metric-card"><div class="metric-top"><span>SLA no prazo</span></div><strong id="metrics-on-track">—</strong><small>Tickets ativos dentro do prazo</small></article><article class="metric-card"><div class="metric-top"><span>SLA estourado</span></div><strong id="metrics-breached">—</strong><small>Requer atenção operacional</small></article><article class="metric-card"><div class="metric-top"><span>Fechados</span></div><strong id="metrics-closed">—</strong><small id="metrics-compliance">Compliance ainda não calculado</small></article></div>
             <div class="dashboard-grid"><article class="panel"><div class="panel-header"><div><h3>Por departamento</h3><p>Volume de chamados</p></div></div><div id="department-bars" class="rank-list"></div></article><article class="panel"><div class="panel-header"><div><h3>Por agente</h3><p>Chamados atribuídos</p></div></div><div id="agent-bars" class="rank-list"></div></article></div>
           </section>
 
           <section id="view-security" class="page-view hidden admin-only">
             <div class="welcome-row"><div><h2>Auditoria de segurança</h2><p class="muted">Eventos relevantes registrados pela API.</p></div><div class="security-badge">ADMIN ONLY</div></div>
-            <article class="panel panel--table"><div class="panel-header"><div><h3>Eventos recentes</h3><p>Dados de demonstração nesta etapa</p></div></div><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Ator</th><th>Rota</th><th>Status</th><th>IP</th><th>Horário</th></tr></thead><tbody id="audit-rows"></tbody></table></div></article>
+            <article class="panel panel--table"><div class="panel-header"><div><h3>Eventos recentes</h3><p>Eventos registrados pela API</p></div></div><div class="table-wrap"><table><thead><tr><th>Evento</th><th>Ator</th><th>Rota</th><th>Status</th><th>IP</th><th>Horário</th></tr></thead><tbody id="audit-rows"></tbody></table></div></article>
           </section>
         </div>
       </section>
     </div>
 
-    <dialog id="ticket-dialog" class="dialog"><form method="dialog" id="ticket-form" class="dialog-card"><div class="dialog-header"><div><p class="eyebrow">NOVO CHAMADO</p><h2>Abrir solicitação</h2></div><button class="icon-button" value="cancel" aria-label="Fechar">×</button></div><label><span>Título</span><input id="new-title" required minlength="3" maxlength="160" placeholder="Ex.: VPN indisponível" /></label><label><span>Descrição</span><textarea id="new-description" required minlength="3" maxlength="5000" placeholder="Descreva o problema e o impacto..."></textarea></label><div class="form-grid"><label><span>Prioridade</span><select id="new-priority"><option value="LOW">Baixa</option><option value="MEDIUM" selected>Média</option><option value="HIGH">Alta</option></select></label><label><span>Departamento</span><select id="new-department"><option>Infraestrutura</option><option>Sistemas</option><option>Suporte</option></select></label></div><div class="dialog-actions"><button class="button button--ghost" value="cancel">Cancelar</button><button class="button button--primary" value="default">Criar chamado</button></div></form></dialog>
+    <dialog id="ticket-dialog" class="dialog"><form method="dialog" id="ticket-form" class="dialog-card"><div class="dialog-header"><div><p class="eyebrow">NOVO CHAMADO</p><h2>Abrir solicitação</h2></div><button class="icon-button" value="cancel" aria-label="Fechar">×</button></div><label><span>Título</span><input id="new-title" required minlength="3" maxlength="160" placeholder="Ex.: VPN indisponível" /></label><label><span>Descrição</span><textarea id="new-description" required minlength="3" maxlength="5000" placeholder="Descreva o problema e o impacto..."></textarea></label><div class="form-grid"><label><span>Prioridade</span><select id="new-priority"><option value="LOW">Baixa</option><option value="MEDIUM" selected>Média</option><option value="HIGH">Alta</option></select></label><label><span>Departamento</span><select id="new-department"><option value="">Sem departamento</option></select></label></div><div class="dialog-actions"><button class="button button--ghost" value="cancel">Cancelar</button><button class="button button--primary" value="default">Criar chamado</button></div></form></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="/app.js" defer></script>
   </body>

@@ -225,10 +225,11 @@ Evita adicionar Redis antes de ele ser necessário, mas essa limitação está d
 
 ## Evolução prevista
 
-Na V1.0, a arquitetura será complementada por:
+Na V1.0, a arquitetura foi complementada por um frontend estático servido por Nginx. O navegador chama `/api/*` no mesmo origin do frontend, e o Nginx encaminha essas requisições para o serviço FastAPI pela rede interna do Docker Compose. Isso elimina a necessidade de CORS no ambiente local e mantém a API diretamente acessível em `:8000` para Swagger e desenvolvimento.
 
-1. frontend separado consumindo a API;
-2. configuração de CORS baseada no ambiente de deploy;
-3. deploy público com banco persistente;
-4. observabilidade e logs adequados ao ambiente hospedado;
-5. eventual backend compartilhado para rate limiting caso haja múltiplas instâncias.
+Próximos passos arquiteturais:
+
+1. deploy público com TLS e banco persistente;
+2. observabilidade e logs adequados ao ambiente hospedado;
+3. eventual backend compartilhado para rate limiting caso haja múltiplas instâncias;
+4. object storage para anexos em cenários com múltiplas réplicas.

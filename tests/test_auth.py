@@ -48,3 +48,25 @@ def test_login_rejects_invalid_credentials(client: TestClient) -> None:
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_me_returns_authenticated_user(client: TestClient) -> None:
+    assert register(client, "me@example.com").status_code == 201
+    login_response = client.post(
+        "/auth/login",
+        data={"username": "me@example.com", "password": "StrongPass123!"},
+    )
+    token = login_response.json()["access_token"]
+
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "me@example.com"
+    assert response.json()["role"] == "USER"
+
+
+def test_me_requires_authentication(client: TestClient) -> None:
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"

@@ -251,6 +251,11 @@ def get_current_user(context: AuthContext = Depends(get_auth_context)) -> User:
     return context.user
 
 
+@router.get("/me", response_model=UserRead)
+def read_current_user(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     request: Request,

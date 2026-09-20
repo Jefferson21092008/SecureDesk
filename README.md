@@ -6,7 +6,7 @@
 
 O projeto simula um sistema corporativo de atendimento com autenticação, controle de acesso por papel, histórico, anexos, SLA, auditoria de segurança e métricas para dashboard.
 
-> Estado atual: backend concluído até a **v0.5.0**. A V1.0 está focada em documentação, frontend, integração e deploy.
+> Estado atual: backend concluído até a **v0.5.0** e frontend integrado à API na **V1.0.4**. A reta final da V1.0 está focada em deploy e polimento.
 
 ## Destaques
 
@@ -137,7 +137,21 @@ docker compose exec api pytest -q
 docker compose exec api ruff check .
 ```
 
-O frontend da V1.0.3 é um shell visual responsivo com dados de demonstração. A integração com autenticação e dados reais da API entra na V1.0.4.
+O frontend usa a API real através de um reverse proxy do Nginx em `/api/*`, evitando CORS no ambiente local. A sessão usa JWT no `sessionStorage`, consulta `/auth/me` para descobrir o papel atual e carrega tickets, métricas, departamentos e auditoria conforme as permissões.
+
+Para popular um ambiente local com dados de demonstração reais, rode:
+
+```bash
+docker compose exec api python scripts/seed_demo.py
+```
+
+O seed é bloqueado quando `APP_ENV=production` e cria três contas locais com a senha `SecureDesk!2026`:
+
+- `admin@securedesk.dev` — `ADMIN`;
+- `agent@securedesk.dev` — `AGENT`;
+- `user@securedesk.dev` — `USER`.
+
+Essas credenciais existem apenas para desenvolvimento/portfólio e não devem ser usadas em deploy público.
 
 O head atual das migrations é:
 
@@ -147,12 +161,12 @@ O head atual das migrations é:
 
 ## Fluxo básico de uso
 
-1. registre um usuário em `POST /auth/register`;
-2. autentique em `POST /auth/login`;
-3. use o Bearer token pelo botão **Authorize** do Swagger;
-4. crie um chamado em `POST /tickets`;
-5. acompanhe comentários, histórico, anexos, assignment e lifecycle conforme o papel do usuário;
-6. consulte `/metrics/*` para dados de dashboard.
+1. registre um usuário em `POST /auth/register` ou use o seed de desenvolvimento;
+2. autentique pelo frontend em `http://localhost:3000/` ou por `POST /auth/login`;
+3. o frontend consulta `GET /auth/me` e aplica a visibilidade conforme o papel autenticado;
+4. crie e consulte chamados pela interface, com dados reais persistidos no PostgreSQL;
+5. métricas e auditoria são carregadas diretamente dos endpoints protegidos da API;
+6. o Swagger continua disponível para explorar funcionalidades ainda não expostas na interface.
 
 ## Segurança
 
@@ -213,7 +227,7 @@ SecureDesk/
 ├── docs/             # arquitetura, segurança e histórico
 ├── tests/            # testes funcionais e de segurança
 ├── docker/           # imagem da API
-├── frontend/         # interface web responsiva (V1.0.3)
+├── frontend/         # interface web integrada à API via Nginx reverse proxy
 ├── scripts/          # verificação local
 └── docker-compose.yml
 ```
@@ -231,8 +245,8 @@ SecureDesk/
 
 - [x] V1.0.1 — OpenAPI / Swagger
 - [x] V1.0.2 — README, arquitetura e documentação de segurança
-- [ ] V1.0.3 — frontend
-- [ ] V1.0.4 — integração frontend/backend
+- [x] V1.0.3 — frontend
+- [x] V1.0.4 — integração frontend/backend
 - [ ] V1.0.5 — deploy
 - [ ] V1.0.6 — polimento e release `v1.0.0`
 
