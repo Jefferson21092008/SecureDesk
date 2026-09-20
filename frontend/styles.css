@@ -175,3 +175,8 @@ td.ticket-title { white-space: normal; min-width: 240px; font-weight: 650; }
   .form-grid { grid-template-columns: 1fr; }
   .rank-item { grid-template-columns: 100px 1fr 26px; }
 }
+
+.login-footnote.is-error { color: var(--danger); }
+.button:disabled { opacity: .6; cursor: wait; transform: none; }
+.empty-state { text-align: center; color: var(--muted); padding: 1.4rem 1rem; }
+.rank-item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -160,7 +160,7 @@ A suíte automatizada inclui regressões para:
 - [ ] gerar `JWT_SECRET` de alta entropia;
 - [ ] remover credenciais padrão do PostgreSQL;
 - [ ] usar TLS no domínio público;
-- [ ] configurar CORS somente para o frontend esperado;
+- [x] usar same-origin reverse proxy para o frontend atual; se frontend/API forem separados no deploy, configurar CORS estritamente para a origem esperada;
 - [ ] usar banco persistente com backup;
 - [ ] usar object storage privado para anexos;
 - [ ] adicionar malware scanning caso uploads públicos sejam aceitos;

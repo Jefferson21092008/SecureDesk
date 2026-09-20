@@ -1,39 +1,30 @@
-SecureDesk V1.0.3 — Frontend shell
+SecureDesk V1.0.4 — integração frontend/backend
 
-1. Crie a branch:
-   git checkout main
-   git pull origin main
-   git checkout -b feat/frontend-shell
+Base esperada: V1.0.3 já mergeada na main.
 
-2. Extraia este patch na raiz do repositório, substituindo os arquivos existentes.
+Principais mudanças:
+- adiciona GET /auth/me para identidade e papel do usuário autenticado;
+- frontend passa a autenticar na API real com JWT;
+- token fica no sessionStorage e logout revoga a sessão no backend;
+- Nginx encaminha /api/* para o serviço FastAPI no Docker Compose;
+- tickets, métricas, departamentos e auditoria passam a usar dados reais;
+- criação de chamados passa a persistir no PostgreSQL;
+- respostas 401, 403 e 429 recebem tratamento no frontend;
+- valores vindos da API são escapados antes de entrar em HTML dinâmico;
+- adiciona scripts/seed_demo.py para popular ambiente local de demonstração;
+- sem migration nova; o head continua 0012_add_security_audit_logs.
 
-3. Reconstrua os serviços:
-   docker compose down
-   docker compose up --build -d
+Fluxo sugerido:
+1. git checkout main
+2. git pull origin main
+3. git checkout -b feat/frontend-api-integration
+4. extraia este patch na raiz do projeto, substituindo os arquivos
+5. docker compose down
+6. docker compose up --build -d
+7. docker compose exec api alembic current
+8. docker compose exec api pytest -q
+9. docker compose exec api ruff check .
+10. opcional: docker compose exec api python scripts/seed_demo.py
+11. abra http://localhost:3000
 
-4. Confirme os três serviços:
-   docker compose ps
-
-   Esperado: db, api e frontend em execução/healthy.
-
-5. Abra o frontend:
-   http://localhost:3000/
-
-   Nesta etapa ele usa dados de demonstração. A integração real com a API entra na V1.0.4.
-
-6. Valide o backend e o shell estático:
-   docker compose exec api alembic current
-   docker compose exec api pytest -q
-   docker compose exec api ruff check .
-
-   Esperado:
-   0012_add_security_audit_logs (head)
-   205 passed
-   All checks passed!
-
-7. Commit/push:
-   git add .
-   git commit -m "feat: add frontend application shell"
-   git push -u origin feat/frontend-shell
-
-Observação: não use `docker compose down -v`, pois isso remove os volumes persistentes.
+Resultado esperado dos testes desta versão: 209 passed.
