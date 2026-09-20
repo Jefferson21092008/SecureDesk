@@ -9,6 +9,8 @@ from time import monotonic
 
 from fastapi import HTTPException, Request, status
 
+from app.core.config import settings
+
 
 @dataclass(frozen=True)
 class RateLimitDecision:
@@ -104,8 +106,19 @@ rate_limiter = SlidingWindowRateLimiter()
 
 
 def client_ip(request: Request) -> str:
-    # Do not trust X-Forwarded-For by default: clients can spoof it unless the
-    # application is behind a configured trusted proxy.
+    # Proxy headers remain disabled by default. Production deployments may opt in
+    # only when every request reaches the app through infrastructure they trust.
+    if settings.trust_proxy_headers:
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            candidate = forwarded_for.split(",", 1)[0].strip()
+            if candidate:
+                return candidate[:64]
+
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip and real_ip.strip():
+            return real_ip.strip()[:64]
+
     if request.client is None or not request.client.host:
         return "unknown"
     return request.client.host

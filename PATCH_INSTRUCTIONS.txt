@@ -1,30 +1,35 @@
-SecureDesk V1.0.4 — integração frontend/backend
+SecureDesk V1.0.5 — deploy
 
-Base esperada: V1.0.3 já mergeada na main.
+Base esperada: V1.0.4 já mergeada na main.
 
 Principais mudanças:
-- adiciona GET /auth/me para identidade e papel do usuário autenticado;
-- frontend passa a autenticar na API real com JWT;
-- token fica no sessionStorage e logout revoga a sessão no backend;
-- Nginx encaminha /api/* para o serviço FastAPI no Docker Compose;
-- tickets, métricas, departamentos e auditoria passam a usar dados reais;
-- criação de chamados passa a persistir no PostgreSQL;
-- respostas 401, 403 e 429 recebem tratamento no frontend;
-- valores vindos da API são escapados antes de entrar em HTML dinâmico;
-- adiciona scripts/seed_demo.py para popular ambiente local de demonstração;
+- adiciona render.yaml com Web Service SecureDesk e PostgreSQL;
+- adiciona imagem de produção única com Nginx + FastAPI, sem dependências de desenvolvimento;
+- Nginx serve o frontend e encaminha /api/* ao Uvicorn no mesmo container;
+- normaliza URLs postgresql:// para o driver psycopg v3 do SQLAlchemy;
+- adiciona TRUST_PROXY_HEADERS, desativado por padrão e ativado somente no Blueprint;
+- adiciona bootstrap idempotente do primeiro ADMIN por variáveis de ambiente;
+- JWT_SECRET é gerado pela plataforma e não é versionado;
+- adiciona docs/DEPLOYMENT.md com fluxo de publicação e limitações;
+- configuração gratuita usa armazenamento efêmero para anexos;
 - sem migration nova; o head continua 0012_add_security_audit_logs.
 
 Fluxo sugerido:
 1. git checkout main
 2. git pull origin main
-3. git checkout -b feat/frontend-api-integration
+3. git checkout -b deploy/render
 4. extraia este patch na raiz do projeto, substituindo os arquivos
 5. docker compose down
 6. docker compose up --build -d
 7. docker compose exec api alembic current
 8. docker compose exec api pytest -q
 9. docker compose exec api ruff check .
-10. opcional: docker compose exec api python scripts/seed_demo.py
-11. abra http://localhost:3000
+10. git add .
+11. git commit -m "deploy: add production Render configuration"
+12. git push -u origin deploy/render
+13. abra PR, aguarde CI e faça merge
+14. no Render, crie New > Blueprint a partir do render.yaml da main
+15. informe INITIAL_ADMIN_EMAIL e INITIAL_ADMIN_PASSWORD fortes
+16. valide frontend, API /health, login, criação de chamado, métricas e logout
 
-Resultado esperado dos testes desta versão: 209 passed.
+Depois do primeiro deploy estável, remova as variáveis temporárias de bootstrap do administrador se desejar.
