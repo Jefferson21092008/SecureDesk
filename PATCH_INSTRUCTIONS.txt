@@ -1,11 +1,11 @@
-SecureDesk V0.5.3 — Métricas por departamento, categoria e agente
+SecureDesk V0.5.4 — Filtros por período e revisão final de métricas
 
-Base esperada: V0.5.2 já mergeada na main.
+Base esperada: V0.5.3 já mergeada na main.
 
 1. Atualize a main e crie a branch:
    git checkout main
    git pull origin main
-   git checkout -b feat/metrics-breakdown
+   git checkout -b feat/metrics-period
 
 2. Extraia este patch na raiz do SecureDesk, substituindo os arquivos.
 
@@ -25,16 +25,18 @@ Base esperada: V0.5.2 já mergeada na main.
 
 6. Se tudo passar:
    git add .
-   git commit -m "feat: add ticket metrics breakdown"
-   git push -u origin feat/metrics-breakdown
+   git commit -m "feat: add metrics period filters"
+   git push -u origin feat/metrics-period
 
-Novidade principal:
-- GET /metrics/breakdown
-- agrupamento por departamento
-- agrupamento por categoria
-- agrupamento por agente responsável
-- buckets null para tickets sem classificação/atribuição
-- escopo OWN para USER e GLOBAL para AGENT/ADMIN
-- agregações realizadas diretamente no banco
+Novidades principais:
+- date_from/date_to em /metrics/overview
+- date_from/date_to em /metrics/sla
+- date_from/date_to em /metrics/breakdown
+- datas inclusivas no recorte UTC de Ticket.created_at
+- suporte a períodos abertos usando apenas um dos parâmetros
+- 422 quando date_from é posterior a date_to
+- filtros de período combinados com OWN/GLOBAL
+- revisão final do módulo de métricas
+- versão da aplicação/pacote atualizada para 0.5.0
 
 Não há migration nova nesta etapa.

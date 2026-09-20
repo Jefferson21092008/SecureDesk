@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, time, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -27,10 +28,56 @@ from app.schemas.metrics import (
 router = APIRouter()
 
 
+@dataclass(frozen=True)
+class MetricsPeriod:
+    created_from: datetime | None
+    created_to: datetime | None
+
+
+def get_metrics_period(
+    date_from: date | None = Query(
+        default=None,
+        description="First ticket creation date to include (UTC, YYYY-MM-DD).",
+    ),
+    date_to: date | None = Query(
+        default=None,
+        description="Last ticket creation date to include (UTC, YYYY-MM-DD).",
+    ),
+) -> MetricsPeriod:
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise HTTPException(
+            status_code=422,
+            detail="date_from must be before or equal to date_to",
+        )
+
+    created_from = None
+    if date_from is not None:
+        created_from = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+
+    created_to = None
+    if date_to is not None:
+        created_to = datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+
+    return MetricsPeriod(created_from=created_from, created_to=created_to)
+
+
 def _apply_ticket_scope(query, current_user: User):
     if current_user.role == UserRole.USER:
         return query.where(Ticket.owner_id == current_user.id), MetricsScope.OWN
     return query, MetricsScope.GLOBAL
+
+
+def _apply_ticket_period(query, period: MetricsPeriod):
+    if period.created_from is not None:
+        query = query.where(Ticket.created_at >= period.created_from)
+    if period.created_to is not None:
+        query = query.where(Ticket.created_at <= period.created_to)
+    return query
+
+
+def _apply_metrics_filters(query, current_user: User, period: MetricsPeriod):
+    query, scope = _apply_ticket_scope(query, current_user)
+    return _apply_ticket_period(query, period), scope
 
 
 def _resolution_seconds_expression(db: Session):
@@ -44,6 +91,7 @@ def _resolution_seconds_expression(db: Session):
 def ticket_metrics_overview(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    period: MetricsPeriod = Depends(get_metrics_period),
 ) -> TicketMetricsOverview:
     query = select(
         func.count(Ticket.id).label("total"),
@@ -59,7 +107,7 @@ def ticket_metrics_overview(
         func.sum(case((Ticket.priority == TicketPriority.HIGH, 1), else_=0)).label("priority_high"),
     )
 
-    query, scope = _apply_ticket_scope(query, current_user)
+    query, scope = _apply_metrics_filters(query, current_user, period)
     counts = db.execute(query).mappings().one()
 
     return TicketMetricsOverview(
@@ -82,6 +130,7 @@ def ticket_metrics_overview(
 def ticket_sla_metrics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    period: MetricsPeriod = Depends(get_metrics_period),
 ) -> TicketSLAMetrics:
     now = datetime.now(timezone.utc)
 
@@ -104,7 +153,7 @@ def ticket_sla_metrics(
         func.avg(case((closed, resolution_seconds))).label("avg_resolution_seconds"),
     )
 
-    query, scope = _apply_ticket_scope(query, current_user)
+    query, scope = _apply_metrics_filters(query, current_user, period)
     counts = db.execute(query).mappings().one()
 
     total = int(counts["total"] or 0)
@@ -142,6 +191,7 @@ def ticket_sla_metrics(
 def ticket_breakdown_metrics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    period: MetricsPeriod = Depends(get_metrics_period),
 ) -> TicketBreakdownMetrics:
     department_query = (
         select(
@@ -157,7 +207,7 @@ def ticket_breakdown_metrics(
             Ticket.department_id.asc(),
         )
     )
-    department_query, scope = _apply_ticket_scope(department_query, current_user)
+    department_query, scope = _apply_metrics_filters(department_query, current_user, period)
 
     category_query = (
         select(
@@ -173,7 +223,7 @@ def ticket_breakdown_metrics(
             Ticket.category_id.asc(),
         )
     )
-    category_query, _ = _apply_ticket_scope(category_query, current_user)
+    category_query, _ = _apply_metrics_filters(category_query, current_user, period)
 
     agent_query = (
         select(
@@ -189,7 +239,7 @@ def ticket_breakdown_metrics(
             Ticket.assigned_agent_id.asc(),
         )
     )
-    agent_query, _ = _apply_ticket_scope(agent_query, current_user)
+    agent_query, _ = _apply_metrics_filters(agent_query, current_user, period)
 
     department_rows = db.execute(department_query).mappings().all()
     category_rows = db.execute(category_query).mappings().all()
