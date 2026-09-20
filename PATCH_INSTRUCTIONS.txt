@@ -1,30 +1,39 @@
-SecureDesk V1.0.2 — Portfolio documentation
+SecureDesk V1.0.3 — Frontend shell
 
-Apply this patch on top of V1.0.1 / main after the OpenAPI polish PR has been merged.
+1. Crie a branch:
+   git checkout main
+   git pull origin main
+   git checkout -b feat/frontend-shell
 
-Files changed/added:
-- README.md
-- docs/ARCHITECTURE.md
-- docs/SECURITY.md
-- docs/DEVELOPMENT_HISTORY.md
-- PATCH_INSTRUCTIONS.txt
+2. Extraia este patch na raiz do repositório, substituindo os arquivos existentes.
 
-No database migration is added.
-Alembic head remains: 0012_add_security_audit_logs
-Application/package version remains: 0.5.0
+3. Reconstrua os serviços:
+   docker compose down
+   docker compose up --build -d
 
-Recommended workflow:
+4. Confirme os três serviços:
+   docker compose ps
 
-1. git checkout main
-2. git pull origin main
-3. git checkout -b docs/portfolio-documentation
-4. Extract this patch at the repository root, replacing files when prompted.
-5. docker compose up -d
-6. docker compose exec api pytest -q
-7. docker compose exec api ruff check .
-8. Review README rendering on GitHub, especially Mermaid diagrams and relative documentation links.
-9. git add .
-10. git commit -m "docs: add portfolio architecture and security documentation"
-11. git push -u origin docs/portfolio-documentation
+   Esperado: db, api e frontend em execução/healthy.
 
-This stage is documentation-only. It should not change API behavior, database schema, or runtime configuration.
+5. Abra o frontend:
+   http://localhost:3000/
+
+   Nesta etapa ele usa dados de demonstração. A integração real com a API entra na V1.0.4.
+
+6. Valide o backend e o shell estático:
+   docker compose exec api alembic current
+   docker compose exec api pytest -q
+   docker compose exec api ruff check .
+
+   Esperado:
+   0012_add_security_audit_logs (head)
+   205 passed
+   All checks passed!
+
+7. Commit/push:
+   git add .
+   git commit -m "feat: add frontend application shell"
+   git push -u origin feat/frontend-shell
+
+Observação: não use `docker compose down -v`, pois isso remove os volumes persistentes.

@@ -36,6 +36,7 @@ O projeto simula um sistema corporativo de atendimento com autenticação, contr
 | Autenticação | JWT + Argon2 |
 | Testes | Pytest + HTTPX/TestClient |
 | Qualidade | Ruff + compileall |
+| Frontend | HTML + CSS + JavaScript, servido por Nginx |
 | Infra local | Docker + Docker Compose |
 | CI | GitHub Actions |
 
@@ -122,6 +123,7 @@ O container da API executa `alembic upgrade head` antes de iniciar o Uvicorn.
 
 ### 4. Acesse
 
+- Frontend: `http://localhost:3000/`
 - API: `http://localhost:8000/`
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
@@ -134,6 +136,8 @@ docker compose exec api alembic current
 docker compose exec api pytest -q
 docker compose exec api ruff check .
 ```
+
+O frontend da V1.0.3 é um shell visual responsivo com dados de demonstração. A integração com autenticação e dados reais da API entra na V1.0.4.
 
 O head atual das migrations é:
 
@@ -209,6 +213,7 @@ SecureDesk/
 ├── docs/             # arquitetura, segurança e histórico
 ├── tests/            # testes funcionais e de segurança
 ├── docker/           # imagem da API
+├── frontend/         # interface web responsiva (V1.0.3)
 ├── scripts/          # verificação local
 └── docker-compose.yml
 ```
