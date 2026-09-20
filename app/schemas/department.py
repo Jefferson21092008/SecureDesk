@@ -4,7 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DepartmentCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "name": "Infrastructure",
+                "description": "Infrastructure and platform support queue.",
+            }
+        },
+    )
 
     name: str = Field(min_length=2, max_length=100)
     description: str | None = Field(default=None, max_length=300)

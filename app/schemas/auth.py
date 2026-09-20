@@ -5,7 +5,15 @@ from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "email": "user@example.com",
+                "password": "StrongPass!2026",
+            }
+        },
+    )
 
     email: EmailStr
     password: str = Field(min_length=12, max_length=128)

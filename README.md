@@ -2,6 +2,29 @@
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
+## V1.0 — Portfólio e apresentação (em andamento)
+
+### V1.0.1 — Revisão da API e OpenAPI/Swagger
+
+A primeira etapa rumo à release 1.0 transforma a documentação automática da API em uma superfície de apresentação do projeto, sem alterar regras de negócio nem o schema do banco.
+
+Melhorias desta etapa:
+
+- título, resumo e descrição profissional no documento OpenAPI;
+- catálogo de tags com explicação dos módulos e das permissões principais;
+- Swagger UI em `GET /docs` com filtro, duração das requisições, persistência da autorização e `Try it out`;
+- ReDoc em `GET /redoc`;
+- schema OpenAPI em `GET /openapi.json`;
+- endpoint de descoberta `GET /` com links estáveis para documentação, schema e health check;
+- `GET /health` agora possui contrato tipado e documentação própria;
+- operation IDs curtos e estáveis baseados no nome da operação, úteis para geração futura de clientes/SDKs;
+- exemplos de payload nos principais schemas de escrita, incluindo cadastro, tickets, categorias, departamentos, comentários e assignment;
+- testes de regressão que verificam metadados, tags, OAuth2, formulário de login, exemplos e unicidade de operation IDs.
+
+O fluxo de autenticação aparece diretamente no Swagger: `POST /auth/login` usa OAuth2 Password e o botão **Authorize** envia o Bearer token para as rotas protegidas. A descrição geral também documenta os papéis `USER`, `AGENT` e `ADMIN`, além do comportamento de rate limiting.
+
+Esta etapa não cria migration. O head do Alembic continua sendo `0012_add_security_audit_logs`, e a versão permanece `0.5.0` até o fechamento da V1.0.
+
 ## V0.5 — Métricas (concluída)
 
 ### V0.5.4 — Filtros por período e revisão final

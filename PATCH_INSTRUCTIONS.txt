@@ -1,42 +1,33 @@
-SecureDesk V0.5.4 — Filtros por período e revisão final de métricas
+SecureDesk — V1.0.1 OpenAPI/Swagger
 
-Base esperada: V0.5.3 já mergeada na main.
-
-1. Atualize a main e crie a branch:
+1. Crie a branch:
    git checkout main
    git pull origin main
-   git checkout -b feat/metrics-period
+   git checkout -b docs/openapi-polish
 
-2. Extraia este patch na raiz do SecureDesk, substituindo os arquivos.
+2. Extraia este patch na raiz do projeto, substituindo os arquivos existentes.
 
-3. Recrie os containers:
+3. Reconstrua e valide:
    docker compose down
    docker compose up --build -d
-
-4. Confirme o Alembic:
    docker compose exec api alembic current
-
-   Esperado:
-   0012_add_security_audit_logs (head)
-
-5. Rode os testes e lint:
    docker compose exec api pytest -q
    docker compose exec api ruff check .
 
-6. Se tudo passar:
-   git add .
-   git commit -m "feat: add metrics period filters"
-   git push -u origin feat/metrics-period
+Resultado esperado:
+   0012_add_security_audit_logs (head)
+   202 passed
+   All checks passed!
 
-Novidades principais:
-- date_from/date_to em /metrics/overview
-- date_from/date_to em /metrics/sla
-- date_from/date_to em /metrics/breakdown
-- datas inclusivas no recorte UTC de Ticket.created_at
-- suporte a períodos abertos usando apenas um dos parâmetros
-- 422 quando date_from é posterior a date_to
-- filtros de período combinados com OWN/GLOBAL
-- revisão final do módulo de métricas
-- versão da aplicação/pacote atualizada para 0.5.0
+4. Verifique a documentação no navegador:
+   http://localhost:8000/
+   http://localhost:8000/docs
+   http://localhost:8000/redoc
+   http://localhost:8000/openapi.json
+
+5. Commit e push:
+   git add .
+   git commit -m "docs: polish OpenAPI and Swagger"
+   git push -u origin docs/openapi-polish
 
 Não há migration nova nesta etapa.

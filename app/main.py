@@ -13,11 +13,30 @@ from app.api.metrics import router as metrics_router
 from app.api.security_audit import router as security_audit_router
 from app.api.tickets import router as tickets_router
 from app.core.config import settings
+from app.core.openapi import (
+    API_DESCRIPTION,
+    API_VERSION,
+    OPENAPI_TAGS,
+    SWAGGER_UI_PARAMETERS,
+    operation_id_from_route_name,
+)
 from app.core.rate_limit import client_ip, rate_limiter
 from app.db import SessionLocal
+from app.schemas.system import APIInfo, HealthResponse
 from app.services.security_audit import SecurityEventType, record_security_event_detached
 
-app = FastAPI(title=settings.app_name, version="0.5.0")
+app = FastAPI(
+    title=f"{settings.app_name} API",
+    summary="Secure IT service desk API",
+    description=API_DESCRIPTION,
+    version=API_VERSION,
+    openapi_tags=OPENAPI_TAGS,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    swagger_ui_parameters=SWAGGER_UI_PARAMETERS,
+    generate_unique_id_function=operation_id_from_route_name,
+)
 app.state.audit_session_factory = SessionLocal
 
 
@@ -86,19 +105,43 @@ async def enforce_api_rate_limit(request: Request, call_next):
     return _apply_security_headers(response)
 
 
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(categories_router, prefix="/categories", tags=["categories"])
-app.include_router(departments_router, prefix="/departments", tags=["departments"])
-app.include_router(assignment_router, prefix="/tickets", tags=["assignment"])
-app.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
-app.include_router(attachments_router, prefix="/tickets", tags=["attachments"])
-app.include_router(comments_router, prefix="/tickets", tags=["comments"])
-app.include_router(history_router, prefix="/tickets", tags=["history"])
-app.include_router(lifecycle_router, prefix="/tickets", tags=["lifecycle"])
-app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
-app.include_router(security_audit_router, prefix="/security", tags=["security"])
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(categories_router, prefix="/categories", tags=["Categories"])
+app.include_router(departments_router, prefix="/departments", tags=["Departments"])
+app.include_router(assignment_router, prefix="/tickets", tags=["Ticket Assignment"])
+app.include_router(tickets_router, prefix="/tickets", tags=["Tickets"])
+app.include_router(attachments_router, prefix="/tickets", tags=["Attachments"])
+app.include_router(comments_router, prefix="/tickets", tags=["Comments"])
+app.include_router(history_router, prefix="/tickets", tags=["History"])
+app.include_router(lifecycle_router, prefix="/tickets", tags=["Lifecycle"])
+app.include_router(metrics_router, prefix="/metrics", tags=["Metrics"])
+app.include_router(security_audit_router, prefix="/security", tags=["Security Audit"])
 
 
-@app.get("/health", tags=["health"])
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get(
+    "/",
+    response_model=APIInfo,
+    tags=["System"],
+    summary="Discover the API",
+    description="Returns stable links to the interactive documentation, OpenAPI schema and health endpoint.",
+)
+def api_info() -> APIInfo:
+    return APIInfo(
+        name=f"{settings.app_name} API",
+        version=API_VERSION,
+        docs="/docs",
+        redoc="/redoc",
+        openapi="/openapi.json",
+        health="/health",
+    )
+
+
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    tags=["System"],
+    summary="Check API health",
+    description="Lightweight liveness endpoint used by Docker health checks and external monitoring.",
+)
+def health() -> HealthResponse:
+    return HealthResponse(status="ok")

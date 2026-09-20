@@ -4,7 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CategoryCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "name": "Network",
+                "description": "Connectivity, VPN and network incidents.",
+            }
+        },
+    )
 
     name: str = Field(min_length=2, max_length=80)
     description: str | None = Field(default=None, max_length=300)

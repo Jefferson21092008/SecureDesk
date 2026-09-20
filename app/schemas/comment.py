@@ -6,7 +6,14 @@ from app.core.validation import reject_unsafe_text
 
 
 class CommentCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "content": "The VPN profile was reinstalled and the user can connect again."
+            }
+        },
+    )
 
     content: str = Field(min_length=1, max_length=5000)
 
