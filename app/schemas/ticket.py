@@ -21,7 +21,18 @@ class SortOrder(str, Enum):
 
 
 class TicketCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "title": "VPN connection unavailable",
+                "description": "The corporate VPN fails during connection after authentication.",
+                "priority": "HIGH",
+                "category_id": 2,
+                "department_id": 1,
+            }
+        },
+    )
 
     title: str = Field(min_length=3, max_length=160)
     description: str = Field(min_length=3, max_length=5000)
@@ -74,7 +85,15 @@ class TicketPage(BaseModel):
 
 
 class TicketUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "priority": "HIGH",
+                "department_id": 1,
+            }
+        },
+    )
 
     title: str | None = Field(default=None, min_length=3, max_length=160)
     description: str | None = Field(default=None, min_length=3, max_length=5000)
