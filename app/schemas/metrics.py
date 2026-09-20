@@ -46,3 +46,28 @@ class TicketSLAMetrics(BaseModel):
     by_sla_status: SLAStatusCounts
     closed: SLAClosedMetrics
     average_resolution_hours: float | None
+
+
+class DepartmentMetricItem(BaseModel):
+    department_id: int | None
+    department_name: str | None
+    total: int
+
+
+class CategoryMetricItem(BaseModel):
+    category_id: int | None
+    category_name: str | None
+    total: int
+
+
+class AgentMetricItem(BaseModel):
+    agent_id: int | None
+    agent_email: str | None
+    total: int
+
+
+class TicketBreakdownMetrics(BaseModel):
+    scope: MetricsScope
+    by_department: list[DepartmentMetricItem]
+    by_category: list[CategoryMetricItem]
+    by_agent: list[AgentMetricItem]

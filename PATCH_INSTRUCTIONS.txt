@@ -1,11 +1,11 @@
-SecureDesk V0.5.2 — Métricas de SLA
+SecureDesk V0.5.3 — Métricas por departamento, categoria e agente
 
-Base esperada: V0.5.1 já mergeada na main.
+Base esperada: V0.5.2 já mergeada na main.
 
 1. Atualize a main e crie a branch:
    git checkout main
    git pull origin main
-   git checkout -b feat/metrics-sla
+   git checkout -b feat/metrics-breakdown
 
 2. Extraia este patch na raiz do SecureDesk, substituindo os arquivos.
 
@@ -25,14 +25,16 @@ Base esperada: V0.5.1 já mergeada na main.
 
 6. Se tudo passar:
    git add .
-   git commit -m "feat: add SLA metrics"
-   git push -u origin feat/metrics-sla
+   git commit -m "feat: add ticket metrics breakdown"
+   git push -u origin feat/metrics-breakdown
 
 Novidade principal:
-- GET /metrics/sla
-- contagem ON_TRACK / MET / BREACHED
-- taxa de cumprimento entre tickets fechados
-- tempo médio de resolução dos tickets fechados
+- GET /metrics/breakdown
+- agrupamento por departamento
+- agrupamento por categoria
+- agrupamento por agente responsável
+- buckets null para tickets sem classificação/atribuição
 - escopo OWN para USER e GLOBAL para AGENT/ADMIN
+- agregações realizadas diretamente no banco
 
 Não há migration nova nesta etapa.

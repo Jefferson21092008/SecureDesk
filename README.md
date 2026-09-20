@@ -4,6 +4,41 @@ API de gestão de chamados de TI, criada como projeto de estudo e portfólio com
 
 ## V0.5 — Métricas (em andamento)
 
+### V0.5.3 — Breakdown por departamento, categoria e agente
+
+A terceira etapa de métricas adiciona um recorte dimensional para o dashboard, agrupando os chamados por departamento, categoria e agente responsável.
+
+Novo endpoint:
+
+```text
+GET /metrics/breakdown
+```
+
+Exemplo de resposta:
+
+```json
+{
+  "scope": "GLOBAL",
+  "by_department": [
+    {"department_id": 1, "department_name": "Infrastructure", "total": 4},
+    {"department_id": null, "department_name": null, "total": 2}
+  ],
+  "by_category": [
+    {"category_id": 2, "category_name": "Network", "total": 3}
+  ],
+  "by_agent": [
+    {"agent_id": 5, "agent_email": "agent@example.com", "total": 3},
+    {"agent_id": null, "agent_email": null, "total": 1}
+  ]
+}
+```
+
+Buckets com identificador/nome `null` representam tickets ainda sem departamento, categoria ou agente. Os grupos nomeados são ordenados alfabeticamente e o bucket sem classificação aparece por último, deixando o contrato previsível para o frontend.
+
+O escopo segue as métricas anteriores: `USER` recebe apenas os próprios tickets (`OWN`); `AGENT` e `ADMIN` recebem a visão global (`GLOBAL`). As três dimensões são agregadas diretamente no banco, sem carregar todos os chamados em memória.
+
+Esta etapa não cria migration; o head do Alembic continua sendo `0012_add_security_audit_logs`.
+
 ### V0.5.2 — Métricas de SLA
 
 A segunda etapa de métricas adiciona um resumo específico de SLA para dashboards e acompanhamento operacional.
