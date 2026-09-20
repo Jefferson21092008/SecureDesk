@@ -17,7 +17,7 @@ from app.core.rate_limit import client_ip, rate_limiter
 from app.db import SessionLocal
 from app.services.security_audit import SecurityEventType, record_security_event_detached
 
-app = FastAPI(title=settings.app_name, version="0.4.0")
+app = FastAPI(title=settings.app_name, version="0.5.0")
 app.state.audit_session_factory = SessionLocal
 
 
