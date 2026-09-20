@@ -6,12 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import get_current_user
 from app.db import get_db
+from app.models.category import Category
+from app.models.department import Department
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
 from app.models.user import User, UserRole
 from app.schemas.metrics import (
+    AgentMetricItem,
+    CategoryMetricItem,
+    DepartmentMetricItem,
     MetricsScope,
     SLAClosedMetrics,
     SLAStatusCounts,
+    TicketBreakdownMetrics,
     TicketMetricsOverview,
     TicketPriorityCounts,
     TicketSLAMetrics,
@@ -129,4 +135,90 @@ def ticket_sla_metrics(
             compliance_rate_percent=compliance_rate,
         ),
         average_resolution_hours=average_resolution_hours,
+    )
+
+
+@router.get("/breakdown", response_model=TicketBreakdownMetrics)
+def ticket_breakdown_metrics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TicketBreakdownMetrics:
+    department_query = (
+        select(
+            Ticket.department_id.label("department_id"),
+            Department.name.label("department_name"),
+            func.count(Ticket.id).label("total"),
+        )
+        .outerjoin(Department, Ticket.department_id == Department.id)
+        .group_by(Ticket.department_id, Department.name)
+        .order_by(
+            Department.name.is_(None),
+            Department.name.asc(),
+            Ticket.department_id.asc(),
+        )
+    )
+    department_query, scope = _apply_ticket_scope(department_query, current_user)
+
+    category_query = (
+        select(
+            Ticket.category_id.label("category_id"),
+            Category.name.label("category_name"),
+            func.count(Ticket.id).label("total"),
+        )
+        .outerjoin(Category, Ticket.category_id == Category.id)
+        .group_by(Ticket.category_id, Category.name)
+        .order_by(
+            Category.name.is_(None),
+            Category.name.asc(),
+            Ticket.category_id.asc(),
+        )
+    )
+    category_query, _ = _apply_ticket_scope(category_query, current_user)
+
+    agent_query = (
+        select(
+            Ticket.assigned_agent_id.label("agent_id"),
+            User.email.label("agent_email"),
+            func.count(Ticket.id).label("total"),
+        )
+        .outerjoin(User, Ticket.assigned_agent_id == User.id)
+        .group_by(Ticket.assigned_agent_id, User.email)
+        .order_by(
+            User.email.is_(None),
+            User.email.asc(),
+            Ticket.assigned_agent_id.asc(),
+        )
+    )
+    agent_query, _ = _apply_ticket_scope(agent_query, current_user)
+
+    department_rows = db.execute(department_query).mappings().all()
+    category_rows = db.execute(category_query).mappings().all()
+    agent_rows = db.execute(agent_query).mappings().all()
+
+    return TicketBreakdownMetrics(
+        scope=scope,
+        by_department=[
+            DepartmentMetricItem(
+                department_id=row["department_id"],
+                department_name=row["department_name"],
+                total=int(row["total"] or 0),
+            )
+            for row in department_rows
+        ],
+        by_category=[
+            CategoryMetricItem(
+                category_id=row["category_id"],
+                category_name=row["category_name"],
+                total=int(row["total"] or 0),
+            )
+            for row in category_rows
+        ],
+        by_agent=[
+            AgentMetricItem(
+                agent_id=row["agent_id"],
+                agent_email=row["agent_email"],
+                total=int(row["total"] or 0),
+            )
+            for row in agent_rows
+        ],
     )
