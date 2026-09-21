@@ -3,10 +3,10 @@ SecureDesk V1.0.5 — deploy
 Base esperada: V1.0.4 já mergeada na main.
 
 Principais mudanças:
-- adiciona render.yaml com Web Service SecureDesk e PostgreSQL;
+- adiciona render.yaml com Web Service SecureDesk e DATABASE_URL externa para Neon;
 - adiciona imagem de produção única com Nginx + FastAPI, sem dependências de desenvolvimento;
 - Nginx serve o frontend e encaminha /api/* ao Uvicorn no mesmo container;
-- normaliza URLs postgresql:// para o driver psycopg v3 do SQLAlchemy;
+- usa Neon Postgres via DATABASE_URL secreta no Render e normaliza URLs postgresql:// para psycopg v3;
 - adiciona TRUST_PROXY_HEADERS, desativado por padrão e ativado somente no Blueprint;
 - adiciona bootstrap idempotente do primeiro ADMIN por variáveis de ambiente;
 - JWT_SECRET é gerado pela plataforma e não é versionado;
@@ -28,8 +28,9 @@ Fluxo sugerido:
 11. git commit -m "deploy: add production Render configuration"
 12. git push -u origin deploy/render
 13. abra PR, aguarde CI e faça merge
-14. no Render, crie New > Blueprint a partir do render.yaml da main
-15. informe INITIAL_ADMIN_EMAIL e INITIAL_ADMIN_PASSWORD fortes
-16. valide frontend, API /health, login, criação de chamado, métricas e logout
+14. crie um projeto PostgreSQL no Neon e copie a connection string com sslmode=require
+15. no Render, crie New > Blueprint a partir do render.yaml da main
+16. informe DATABASE_URL, INITIAL_ADMIN_EMAIL e INITIAL_ADMIN_PASSWORD fortes
+17. valide frontend, API /health, login, criação de chamado, métricas e logout
 
 Depois do primeiro deploy estável, remova as variáveis temporárias de bootstrap do administrador se desejar.

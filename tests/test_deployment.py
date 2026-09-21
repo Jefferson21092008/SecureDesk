@@ -46,9 +46,10 @@ def test_render_blueprint_declares_complete_stack() -> None:
         return
     blueprint = blueprint_path.read_text(encoding="utf-8")
     assert "name: securedesk" in blueprint
-    assert "name: securedesk-db" in blueprint
+    assert "databases:" not in blueprint
     assert "generateValue: true" in blueprint
-    assert "property: connectionString" in blueprint
+    assert "key: DATABASE_URL" in blueprint
+    assert "sync: false" in blueprint
     assert "healthCheckPath: /api/health" in blueprint
     assert "APP_ENV" in blueprint and "production" in blueprint
 

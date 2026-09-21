@@ -9,16 +9,17 @@ flowchart LR
     Browser[Navegador] --> Web[SecureDesk Web Service]
     Web --> Nginx[Nginx : PORT]
     Nginx -->|/api/*| API[FastAPI :8000]
-    API --> DB[(Render Postgres)]
+    API --> DB[(Neon Postgres)]
     API --> Temp[(attachments temporários)]
 ```
 
-O deploy de referência usa **um único Web Service** para o frontend e a API: o Nginx recebe o tráfego público e encaminha `/api/*` para o Uvicorn dentro do mesmo container. Isso mantém o mesmo origin do ambiente local, evita CORS e funciona sem depender de recebimento pela rede privada entre dois serviços gratuitos. O PostgreSQL continua como serviço gerenciado separado.
+O deploy de referência usa **um único Web Service** para o frontend e a API: o Nginx recebe o tráfego público e encaminha `/api/*` para o Uvicorn dentro do mesmo container. Isso mantém o mesmo origin do ambiente local, evita CORS e funciona sem depender de recebimento pela rede privada entre dois serviços gratuitos. O PostgreSQL continua como serviço gerenciado separado no Neon, desacoplado do ciclo de vida do Web Service do Render.
 
 ## 1. Pré-requisitos
 
 - repositório atualizado no GitHub;
 - conta no Render conectada ao GitHub;
+- projeto PostgreSQL criado no Neon;
 - uma senha **nova e exclusiva** para o administrador inicial.
 
 Não use `SecureDesk!2026` no ambiente público. Essa senha existe somente no seed local.
@@ -31,15 +32,15 @@ No Render:
 2. conecte o repositório `SecureDesk`;
 3. use o `render.yaml` da raiz;
 4. selecione a branch que contém a V1.0.5;
-5. informe `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` quando o Render solicitar;
-6. revise os recursos e execute **Deploy Blueprint**.
+5. quando o Render solicitar `DATABASE_URL`, cole a connection string do projeto Neon;
+6. informe `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD`;
+7. revise o recurso e execute **Deploy Blueprint**.
 
-O Blueprint cria:
+O Blueprint cria apenas:
 
-- `securedesk` — Web Service com Nginx + FastAPI no mesmo container;
-- `securedesk-db` — PostgreSQL.
+- `securedesk` — Web Service com Nginx + FastAPI no mesmo container.
 
-`JWT_SECRET` é gerado pela plataforma e não fica versionado no Git.
+O banco é o projeto Neon criado separadamente. `DATABASE_URL` é marcada como `sync: false`, portanto o segredo é informado no painel do Render e não fica versionado. `JWT_SECRET` continua sendo gerado pela plataforma.
 
 ## 3. Inicialização
 
@@ -79,7 +80,7 @@ Swagger e ReDoc ficam disponíveis no mesmo domínio público, através do proxy
 
 ## 5. Banco e migrations
 
-`DATABASE_URL` vem do Render Postgres. O SecureDesk normaliza URLs `postgresql://` para o driver SQLAlchemy `postgresql+psycopg://` usado pelo projeto.
+`DATABASE_URL` vem do Neon. O SecureDesk normaliza URLs `postgresql://` para o driver SQLAlchemy `postgresql+psycopg://` usado pelo projeto. Use uma connection string com TLS habilitado (`sslmode=require`); para este deploy de uma única instância, a URL direta é suficiente. Se optar pela URL pooled do Neon, mantenha a mesma variável e valide as migrations no primeiro deploy.
 
 A migration atual continua:
 
@@ -103,7 +104,7 @@ Esse armazenamento é **efêmero**. Arquivos enviados podem desaparecer quando a
 
 ## 8. Limitações da configuração gratuita
 
-A configuração `render.yaml` prioriza demonstração de portfólio e baixo custo. Recursos gratuitos podem dormir, ter limites de uso e possuir políticas de retenção diferentes das camadas pagas. Antes de usar o sistema como serviço real, revise o plano do banco, persistência de anexos, backups, disponibilidade e escalabilidade.
+A configuração `render.yaml` prioriza demonstração de portfólio e baixo custo. O Web Service do Render e o projeto Neon podem suspender recursos quando ficam ociosos e possuem limites próprios no plano gratuito. Antes de usar o sistema como serviço real, revise os planos, persistência de anexos, backups, disponibilidade e escalabilidade.
 
 O rate limiter atual continua em memória e foi projetado para uma única instância da API. Para múltiplas réplicas, migre o estado do limiter para Redis/Key Value antes de escalar horizontalmente.
 
@@ -112,7 +113,7 @@ O rate limiter atual continua em memória e foi projetado para uma única instâ
 - trocar/remover qualquer credencial temporária;
 - não executar `scripts/seed_demo.py` em produção;
 - confirmar `APP_ENV=production` e `DEBUG=false`;
-- confirmar que o `JWT_SECRET` não está no repositório;
+- confirmar que `JWT_SECRET` e `DATABASE_URL` não estão no repositório;
 - testar login/logout e papéis;
 - validar health checks;
 - verificar logs de deploy;

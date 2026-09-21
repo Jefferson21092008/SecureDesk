@@ -30,7 +30,7 @@ O projeto simula um sistema corporativo de atendimento com autenticação, contr
 | --- | --- |
 | API | FastAPI |
 | ORM | SQLAlchemy 2 |
-| Banco | PostgreSQL 17 |
+| Banco | PostgreSQL 17 (Neon no deploy de referência) |
 | Migrações | Alembic |
 | Validação | Pydantic |
 | Autenticação | JWT + Argon2 |
@@ -171,10 +171,10 @@ SecureDesk Web Service
    ├─ Nginx → frontend
    └─ /api/* → FastAPI
                   ↓
-          securedesk-db (PostgreSQL)
+          Neon Postgres
 ```
 
-O deploy usa uma imagem de produção com Nginx + FastAPI, gera `JWT_SECRET` fora do Git, executa migrations na inicialização e permite criar o primeiro administrador sem credenciais fixas no repositório.
+O deploy usa uma imagem de produção com Nginx + FastAPI no Render e um PostgreSQL gerenciado no Neon. `DATABASE_URL` e `JWT_SECRET` ficam fora do Git, as migrations rodam na inicialização e o primeiro administrador pode ser criado sem credenciais fixas no repositório.
 
 Consulte [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) antes de publicar. A configuração gratuita é adequada para demonstração de portfólio, mas anexos permanecem em armazenamento efêmero até a adoção de disco persistente ou object storage.
 
