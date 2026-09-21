@@ -1,6 +1,6 @@
 # Deploy do SecureDesk
 
-A V1.0.5 inclui uma configuração de referência para publicar o SecureDesk no **Render** com infraestrutura como código (`render.yaml`). O objetivo é manter o mesmo desenho usado localmente: frontend Nginx, API FastAPI e PostgreSQL, sem liberar CORS desnecessariamente.
+O SecureDesk 1.0 usa uma configuração de referência para publicação no **Render** com infraestrutura como código (`render.yaml`). O objetivo é manter o mesmo desenho usado localmente: frontend Nginx, API FastAPI e PostgreSQL, sem liberar CORS desnecessariamente.
 
 ## Arquitetura publicada
 
@@ -31,7 +31,7 @@ No Render:
 1. escolha **New > Blueprint**;
 2. conecte o repositório `SecureDesk`;
 3. use o `render.yaml` da raiz;
-4. selecione a branch que contém a V1.0.5;
+4. selecione a branch `main`;
 5. quando o Render solicitar `DATABASE_URL`, cole a connection string do projeto Neon;
 6. informe `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD`;
 7. revise o recurso e execute **Deploy Blueprint**.
@@ -64,7 +64,7 @@ Confirme:
 
 - frontend abre sem erro;
 - login do administrador funciona;
-- `GET /health` da API retorna `{"status":"ok"}`;
+- `GET /api/health` retorna `{"status":"ok"}` no domínio público;
 - criação de chamado persiste após refresh;
 - dashboard carrega métricas;
 - página de auditoria aparece somente para `ADMIN`;
@@ -119,3 +119,22 @@ O rate limiter atual continua em memória e foi projetado para uma única instâ
 - verificar logs de deploy;
 - testar a URL pública em janela anônima;
 - adicionar a URL pública ao README somente depois de o deploy estar estável.
+## 10. Ambiente público de referência
+
+A release 1.0 foi validada no seguinte endereço público:
+
+- aplicação: `https://securedesk-e2pb.onrender.com`;
+- Swagger: `https://securedesk-e2pb.onrender.com/api/docs`;
+- ReDoc: `https://securedesk-e2pb.onrender.com/api/redoc`;
+- health check: `https://securedesk-e2pb.onrender.com/api/health`.
+
+Após cada deploy, execute também o smoke test incluído no repositório:
+
+```bash
+python scripts/smoke_test.py https://securedesk-e2pb.onrender.com
+```
+
+O script valida a página inicial, o health check e a versão publicada no OpenAPI sem precisar de credenciais.
+
+> Segredos de ambiente nunca devem ser copiados para issues, logs, commits ou screenshots. O bootstrap do administrador converte erros de validação em uma mensagem genérica para evitar que o valor rejeitado apareça no traceback de produção.
+

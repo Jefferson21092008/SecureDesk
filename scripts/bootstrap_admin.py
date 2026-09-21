@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,8 +12,20 @@ from app.models.user import User, UserRole
 from app.schemas.auth import UserCreate
 
 
+class InitialAdminConfigurationError(ValueError):
+    """Raised when bootstrap credentials fail validation without exposing secrets."""
+
+
 def ensure_initial_admin(db: Session, *, email: str, password: str) -> User:
-    data = UserCreate(email=email, password=password)
+    try:
+        data = UserCreate(email=email, password=password)
+    except ValidationError:
+        # Do not propagate Pydantic's full validation error here: it includes the
+        # rejected input and can leak secrets into production deployment logs.
+        raise InitialAdminConfigurationError(
+            "Initial admin credentials do not satisfy SecureDesk validation rules."
+        ) from None
+
     user = db.scalar(select(User).where(User.email == data.email))
 
     if user is None:
@@ -40,8 +53,11 @@ def main() -> None:
     if not email or not password:
         raise SystemExit("INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD must be configured together")
 
-    with SessionLocal() as db:
-        admin = ensure_initial_admin(db, email=email, password=password)
+    try:
+        with SessionLocal() as db:
+            admin = ensure_initial_admin(db, email=email, password=password)
+    except InitialAdminConfigurationError as exc:
+        raise SystemExit(str(exc)) from None
 
     print(f"Initial admin ready: {admin.email}")
 

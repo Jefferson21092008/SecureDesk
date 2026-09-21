@@ -13,7 +13,7 @@ class APIInfo(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "SecureDesk API",
-                "version": "0.5.0",
+                "version": "1.0.0",
                 "docs": "/docs",
                 "redoc": "/redoc",
                 "openapi": "/openapi.json",

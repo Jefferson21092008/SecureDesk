@@ -1,36 +1,49 @@
-SecureDesk V1.0.5 — deploy
+SecureDesk V1.0.6 — polimento final e release v1.0.0
 
-Base esperada: V1.0.4 já mergeada na main.
+Base esperada:
+- V1.0.5 já mergeada na main
+- deploy Render + Neon funcionando
+- Alembic em 0012_add_security_audit_logs
 
-Principais mudanças:
-- adiciona render.yaml com Web Service SecureDesk e DATABASE_URL externa para Neon;
-- adiciona imagem de produção única com Nginx + FastAPI, sem dependências de desenvolvimento;
-- Nginx serve o frontend e encaminha /api/* ao Uvicorn no mesmo container;
-- usa Neon Postgres via DATABASE_URL secreta no Render e normaliza URLs postgresql:// para psycopg v3;
-- adiciona TRUST_PROXY_HEADERS, desativado por padrão e ativado somente no Blueprint;
-- adiciona bootstrap idempotente do primeiro ADMIN por variáveis de ambiente;
-- JWT_SECRET é gerado pela plataforma e não é versionado;
-- adiciona docs/DEPLOYMENT.md com fluxo de publicação e limitações;
-- configuração gratuita usa armazenamento efêmero para anexos;
-- sem migration nova; o head continua 0012_add_security_audit_logs.
+O patch:
+- atualiza a versão do pacote/API para 1.0.0;
+- adiciona links do ambiente público ao README;
+- conclui o roadmap V1.0;
+- adiciona CHANGELOG.md;
+- adiciona scripts/smoke_test.py para verificação pós-deploy;
+- corrige o texto "Ambiente local" no frontend;
+- impede que credenciais inválidas do bootstrap apareçam em traceback;
+- atualiza documentação de deploy e histórico;
+- adiciona testes de regressão da release.
+
+Não há migration nova.
 
 Fluxo sugerido:
-1. git checkout main
-2. git pull origin main
-3. git checkout -b deploy/render
-4. extraia este patch na raiz do projeto, substituindo os arquivos
-5. docker compose down
-6. docker compose up --build -d
-7. docker compose exec api alembic current
-8. docker compose exec api pytest -q
-9. docker compose exec api ruff check .
-10. git add .
-11. git commit -m "deploy: add production Render configuration"
-12. git push -u origin deploy/render
-13. abra PR, aguarde CI e faça merge
-14. crie um projeto PostgreSQL no Neon e copie a connection string com sslmode=require
-15. no Render, crie New > Blueprint a partir do render.yaml da main
-16. informe DATABASE_URL, INITIAL_ADMIN_EMAIL e INITIAL_ADMIN_PASSWORD fortes
-17. valide frontend, API /health, login, criação de chamado, métricas e logout
 
-Depois do primeiro deploy estável, remova as variáveis temporárias de bootstrap do administrador se desejar.
+1. Atualize a main e crie a branch:
+   git checkout main
+   git pull origin main
+   git checkout -b release/v1.0.0
+
+2. Extraia este patch na raiz do repositório, substituindo os arquivos.
+
+3. Rebuild e validação local:
+   docker compose down
+   docker compose up --build -d
+   docker compose exec api alembic current
+   docker compose exec api pytest -q
+   docker compose exec api ruff check .
+
+4. Valide o ambiente publicado após o deploy:
+   python scripts/smoke_test.py https://securedesk-e2pb.onrender.com
+
+5. Commit e push:
+   git add .
+   git commit -m "release: prepare SecureDesk v1.0.0"
+   git push -u origin release/v1.0.0
+
+Após CI verde e merge, atualize main e crie a tag:
+   git checkout main
+   git pull origin main
+   git tag -a v1.0.0 -m "SecureDesk v1.0.0"
+   git push origin v1.0.0

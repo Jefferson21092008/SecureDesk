@@ -6,7 +6,16 @@
 
 O projeto simula um sistema corporativo de atendimento com autenticação, controle de acesso por papel, histórico, anexos, SLA, auditoria de segurança e métricas para dashboard.
 
-> Estado atual: backend concluído até a **v0.5.0**, frontend integrado à API e configuração de deploy adicionada na **V1.0.5**. Falta apenas o polimento final para a release `v1.0.0`.
+> **Release atual: `v1.0.0`** — backend, frontend, segurança, métricas, documentação e deploy público concluídos.
+
+## Demo online
+
+- Aplicação: https://securedesk-e2pb.onrender.com
+- Swagger: https://securedesk-e2pb.onrender.com/api/docs
+- ReDoc: https://securedesk-e2pb.onrender.com/api/redoc
+- Health: https://securedesk-e2pb.onrender.com/api/health
+
+O ambiente publicado usa **Render + Neon Postgres**. Credenciais administrativas não ficam versionadas no repositório.
 
 ## Destaques
 
@@ -162,7 +171,7 @@ O head atual das migrations é:
 
 ## Deploy
 
-A V1.0.5 inclui um `render.yaml` para provisionar a arquitetura de referência no Render:
+A configuração de produção usa `render.yaml` para provisionar a arquitetura de referência no Render:
 
 ```text
 Internet
@@ -259,17 +268,18 @@ SecureDesk/
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — publicação, bootstrap do admin e limitações do ambiente;
 - [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md) — revisão de segurança da V0.4;
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md) — histórico detalhado da evolução do projeto;
+- [`CHANGELOG.md`](CHANGELOG.md) — resumo das releases e marcos do projeto;
 - `/docs` — documentação interativa Swagger;
 - `/redoc` — referência ReDoc.
 
-## Roadmap para 1.0
+## Roadmap 1.0 — concluído
 
 - [x] V1.0.1 — OpenAPI / Swagger
 - [x] V1.0.2 — README, arquitetura e documentação de segurança
 - [x] V1.0.3 — frontend
 - [x] V1.0.4 — integração frontend/backend
 - [x] V1.0.5 — deploy
-- [ ] V1.0.6 — polimento e release `v1.0.0`
+- [x] V1.0.6 — polimento e release `v1.0.0`
 
 ## Objetivo do projeto
 

@@ -1,6 +1,6 @@
 from fastapi.routing import APIRoute
 
-API_VERSION = "0.5.0"
+API_VERSION = "1.0.0"
 
 API_DESCRIPTION = """
 SecureDesk is a secure IT service desk API for managing the complete lifecycle of support tickets.
