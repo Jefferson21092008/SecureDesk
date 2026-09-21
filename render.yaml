@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: securedesk
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./docker/Dockerfile.production
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_NAME
+        value: SecureDesk
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ISSUER
+        value: securedesk
+      - key: JWT_AUDIENCE
+        value: securedesk-api
+      - key: ACCESS_TOKEN_MINUTES
+        value: "30"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: ATTACHMENTS_DIR
+        value: /tmp/securedesk-attachments
+      - key: ATTACHMENT_MAX_BYTES
+        value: "5242880"
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false

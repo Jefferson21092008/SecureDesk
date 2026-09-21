@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DEVELOPMENT_JWT_SECRET = "development-only-secret-change-me-32-bytes"
@@ -25,8 +25,18 @@ class Settings(BaseSettings):
     login_failure_window_seconds: int = Field(default=300, ge=1, le=86400)
     attachments_dir: str = "uploads/attachments"
     attachment_max_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=25 * 1024 * 1024)
+    trust_proxy_headers: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        # Managed Postgres providers commonly expose postgresql:// URLs.
+        # SQLAlchemy must be told explicitly to use the installed psycopg v3 driver.
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":

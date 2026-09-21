@@ -6,7 +6,7 @@
 
 O projeto simula um sistema corporativo de atendimento com autenticação, controle de acesso por papel, histórico, anexos, SLA, auditoria de segurança e métricas para dashboard.
 
-> Estado atual: backend concluído até a **v0.5.0** e frontend integrado à API na **V1.0.4**. A reta final da V1.0 está focada em deploy e polimento.
+> Estado atual: backend concluído até a **v0.5.0**, frontend integrado à API e configuração de deploy adicionada na **V1.0.5**. Falta apenas o polimento final para a release `v1.0.0`.
 
 ## Destaques
 
@@ -30,7 +30,7 @@ O projeto simula um sistema corporativo de atendimento com autenticação, contr
 | --- | --- |
 | API | FastAPI |
 | ORM | SQLAlchemy 2 |
-| Banco | PostgreSQL 17 |
+| Banco | PostgreSQL 17 (Neon no deploy de referência) |
 | Migrações | Alembic |
 | Validação | Pydantic |
 | Autenticação | JWT + Argon2 |
@@ -38,6 +38,7 @@ O projeto simula um sistema corporativo de atendimento com autenticação, contr
 | Qualidade | Ruff + compileall |
 | Frontend | HTML + CSS + JavaScript, servido por Nginx |
 | Infra local | Docker + Docker Compose |
+| Deploy de referência | Render Blueprint + Docker |
 | CI | GitHub Actions |
 
 ## Arquitetura
@@ -58,7 +59,7 @@ flowchart LR
 
 A aplicação é organizada em rotas, schemas, modelos, serviços e infraestrutura. Regras sensíveis — como autorização, armazenamento de anexos, SLA, rate limiting e auditoria — ficam separadas dos handlers HTTP para reduzir acoplamento.
 
-Veja a documentação detalhada em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Veja a documentação detalhada em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). O deploy de referência está documentado em [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Papéis e permissões
 
@@ -159,6 +160,24 @@ O head atual das migrations é:
 0012_add_security_audit_logs
 ```
 
+## Deploy
+
+A V1.0.5 inclui um `render.yaml` para provisionar a arquitetura de referência no Render:
+
+```text
+Internet
+   ↓
+SecureDesk Web Service
+   ├─ Nginx → frontend
+   └─ /api/* → FastAPI
+                  ↓
+          Neon Postgres
+```
+
+O deploy usa uma imagem de produção com Nginx + FastAPI no Render e um PostgreSQL gerenciado no Neon. `DATABASE_URL` e `JWT_SECRET` ficam fora do Git, as migrations rodam na inicialização e o primeiro administrador pode ser criado sem credenciais fixas no repositório.
+
+Consulte [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) antes de publicar. A configuração gratuita é adequada para demonstração de portfólio, mas anexos permanecem em armazenamento efêmero até a adoção de disco persistente ou object storage.
+
 ## Fluxo básico de uso
 
 1. registre um usuário em `POST /auth/register` ou use o seed de desenvolvimento;
@@ -228,7 +247,8 @@ SecureDesk/
 ├── tests/            # testes funcionais e de segurança
 ├── docker/           # imagem da API
 ├── frontend/         # interface web integrada à API via Nginx reverse proxy
-├── scripts/          # verificação local
+├── scripts/          # verificação, seed e bootstrap de admin
+├── render.yaml       # infraestrutura de referência para deploy
 └── docker-compose.yml
 ```
 
@@ -236,6 +256,7 @@ SecureDesk/
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — arquitetura, fluxo de requisição e decisões técnicas;
 - [`docs/SECURITY.md`](docs/SECURITY.md) — controles, limites e checklist de produção;
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — publicação, bootstrap do admin e limitações do ambiente;
 - [`SECURITY_REVIEW.md`](SECURITY_REVIEW.md) — revisão de segurança da V0.4;
 - [`docs/DEVELOPMENT_HISTORY.md`](docs/DEVELOPMENT_HISTORY.md) — histórico detalhado da evolução do projeto;
 - `/docs` — documentação interativa Swagger;
@@ -247,7 +268,7 @@ SecureDesk/
 - [x] V1.0.2 — README, arquitetura e documentação de segurança
 - [x] V1.0.3 — frontend
 - [x] V1.0.4 — integração frontend/backend
-- [ ] V1.0.5 — deploy
+- [x] V1.0.5 — deploy
 - [ ] V1.0.6 — polimento e release `v1.0.0`
 
 ## Objetivo do projeto
