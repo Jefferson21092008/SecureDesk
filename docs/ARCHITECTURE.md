@@ -8,14 +8,14 @@ O SecureDesk é uma API monolítica modular construída com FastAPI. O serviço 
 
 ```mermaid
 flowchart TB
-    Client[Client / Frontend]
-    FastAPI[FastAPI Application]
-    Middleware[Security + Rate Limit Middleware]
-    Routers[API Routers]
-    Services[Domain Services]
-    ORM[SQLAlchemy ORM]
-    DB[(PostgreSQL)]
-    Files[(Attachment Storage)]
+    Client["Client / Frontend"]
+    FastAPI["FastAPI Application"]
+    Middleware["Security + Rate Limit Middleware"]
+    Routers["API Routers"]
+    Services["Domain Services"]
+    ORM["SQLAlchemy ORM"]
+    DB[("PostgreSQL")]
+    Files[("Attachment Storage")]
 
     Client --> FastAPI
     FastAPI --> Middleware

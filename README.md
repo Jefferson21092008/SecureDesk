@@ -54,16 +54,16 @@ O ambiente publicado usa **Render + Neon Postgres**. Credenciais administrativas
 
 ```mermaid
 flowchart LR
-    Client[Client / Frontend] --> API[FastAPI]
-    API --> Auth[Auth + RBAC]
-    API --> Tickets[Ticket Domain]
-    API --> Metrics[Metrics]
-    API --> Audit[Security Audit]
-    Auth --> DB[(PostgreSQL)]
+    Client["Client / Frontend"] --> API["FastAPI"]
+    API --> Auth["Auth + RBAC"]
+    API --> Tickets["Ticket Domain"]
+    API --> Metrics["Metrics"]
+    API --> Audit["Security Audit"]
+    Auth --> DB[("PostgreSQL")]
     Tickets --> DB
     Metrics --> DB
     Audit --> DB
-    Tickets --> Storage[(Attachment Volume)]
+    Tickets --> Storage[("Attachment Volume")]
 ```
 
 A aplicação é organizada em rotas, schemas, modelos, serviços e infraestrutura. Regras sensíveis — como autorização, armazenamento de anexos, SLA, rate limiting e auditoria — ficam separadas dos handlers HTTP para reduzir acoplamento.
