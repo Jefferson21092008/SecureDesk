@@ -1,11 +1,33 @@
 # SecureDesk — Development History
 
-Registro detalhado da evolução do projeto até a V1.0.1. O README principal foi condensado na V1.0.2 para funcionar como apresentação de portfólio.
+Registro detalhado da evolução do projeto até a release V1.0.0. O README principal foi condensado na V1.0.2 para funcionar como apresentação de portfólio.
 
 
 API de gestão de chamados de TI, criada como projeto de estudo e portfólio com foco em backend, arquitetura, testes e segurança.
 
-## V1.0 — Portfólio e apresentação (em andamento)
+## V1.0 — Portfólio e apresentação (concluída)
+
+### V1.0.6 — Polimento final e release v1.0.0
+
+A etapa final consolida a versão `1.0.0` em pacote, OpenAPI e respostas de descoberta, publica o endereço de demonstração no README, adiciona `CHANGELOG.md`, inclui um smoke test de produção e remove a indicação incorreta de "Ambiente local" da interface. O bootstrap do primeiro administrador também passa a ocultar valores rejeitados em erros de validação, evitando exposição acidental de senhas em logs de deploy.
+
+Não há nova migration; o head permanece `0012_add_security_audit_logs`.
+
+### V1.0.5 — Deploy Render + Neon
+
+Adiciona imagem de produção com Nginx + FastAPI no mesmo Web Service, Blueprint do Render, PostgreSQL gerenciado no Neon, migrations automáticas, bootstrap do primeiro ADMIN e documentação de operação. O deploy público de referência foi validado em `https://securedesk-e2pb.onrender.com`.
+
+### V1.0.4 — Integração frontend/backend
+
+Conecta a interface à API real: login JWT, `/auth/me`, logout/revogação, tickets, criação de chamados, departamentos, categorias, métricas e auditoria ADMIN. O Nginx usa `/api/*` como reverse proxy e o frontend escapa conteúdo retornado pela API antes de inserir HTML.
+
+### V1.0.3 — Frontend
+
+Adiciona a interface responsiva do SecureDesk com login, dashboard, chamados, métricas, auditoria e modal de abertura de solicitação, servida por Nginx no Docker Compose.
+
+### V1.0.2 — Documentação de portfólio
+
+Reorganiza o README para apresentação, adiciona documentação de arquitetura, segurança e histórico de desenvolvimento e preserva decisões técnicas e trade-offs do projeto.
 
 ### V1.0.1 — Revisão da API e OpenAPI/Swagger
 
