@@ -11,3 +11,12 @@ venv/
 .vscode/
 uploads/
 *.egg-info/
+
+# Etapa 06: never commit database dumps, backup bundles or local credentials.
+*.dump
+*.backup
+*.pgdump
+.pgpass
+pgpass.conf
+/backups/
+/backup-data/
