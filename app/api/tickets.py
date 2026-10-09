@@ -22,7 +22,7 @@ from app.schemas.ticket import (
     TicketSortBy,
     TicketUpdate,
 )
-from app.services.attachment_storage import delete_stored_file
+from app.services.attachment_storage import remove_attachment
 from app.services.sla import SLAStatus, calculate_sla_due_at
 
 router = APIRouter()
@@ -248,9 +248,9 @@ def delete_ticket(
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     storage_keys = list(
-        db.scalars(select(Attachment.storage_key).where(Attachment.ticket_id == ticket.id))
+        db.execute(select(Attachment.storage_key, Attachment.storage_backend).where(Attachment.ticket_id == ticket.id))
     )
     db.delete(ticket)
     db.commit()
-    for storage_key in storage_keys:
-        delete_stored_file(storage_key)
+    for storage_key, storage_backend in storage_keys:
+        remove_attachment(storage_key, storage_backend)

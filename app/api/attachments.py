@@ -1,7 +1,8 @@
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,9 @@ from app.models.attachment import Attachment
 from app.models.ticket_history import TicketHistory
 from app.models.user import User, UserRole
 from app.schemas.attachment import AttachmentRead
-from app.services.attachment_storage import attachment_path, delete_stored_file, store_upload
+from app.services.attachment_r2 import get_r2_object
+from app.services.attachment_s3 import get_s3_object
+from app.services.attachment_storage import attachment_path, remove_attachment, save_attachment
 
 router = APIRouter()
 
@@ -41,13 +44,14 @@ def upload_attachment(
     db: Session = Depends(get_db),
 ) -> Attachment:
     ticket = get_accessible_ticket(ticket_id, current_user, db)
-    original_filename, storage_key, content_type, size_bytes = store_upload(file)
+    original_filename, storage_key, content_type, size_bytes, storage_backend = save_attachment(file)
 
     attachment = Attachment(
         ticket_id=ticket.id,
         uploader_id=current_user.id,
         original_filename=original_filename,
         storage_key=storage_key,
+        storage_backend=storage_backend,
         content_type=content_type,
         size_bytes=size_bytes,
     )
@@ -67,7 +71,7 @@ def upload_attachment(
         db.commit()
     except Exception:
         db.rollback()
-        delete_stored_file(storage_key)
+        remove_attachment(storage_key, storage_backend)
         raise
 
     db.refresh(attachment)
@@ -96,9 +100,29 @@ def download_attachment(
     attachment_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> FileResponse:
+) -> Response:
     get_accessible_ticket(ticket_id, current_user, db)
     attachment = _get_attachment(ticket_id, attachment_id, db)
+    if attachment.storage_backend in {"r2", "s3"}:
+        get_object = get_s3_object if attachment.storage_backend == "s3" else get_r2_object
+        body = get_object(attachment.storage_key)
+
+        def stream():
+            try:
+                yield from body.iter_chunks(chunk_size=1024 * 1024)
+            finally:
+                body.close()
+
+        return StreamingResponse(
+            stream(),
+            media_type=attachment.content_type,
+            headers={
+                "Content-Disposition": f"attachment; filename*=utf-8''{quote(attachment.original_filename)}",
+                "Cache-Control": "no-store",
+            },
+        )
+    if attachment.storage_backend != "local":
+        raise HTTPException(status_code=503, detail="Attachment storage temporarily unavailable")
     try:
         path = attachment_path(attachment.storage_key)
     except ValueError:
@@ -110,6 +134,7 @@ def download_attachment(
         path=Path(path),
         media_type=attachment.content_type,
         filename=attachment.original_filename,
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -133,6 +158,7 @@ def delete_attachment(
         )
 
     storage_key = attachment.storage_key
+    storage_backend = attachment.storage_backend
     db.add(
         TicketHistory(
             ticket_id=ticket.id,
@@ -144,4 +170,4 @@ def delete_attachment(
     )
     db.delete(attachment)
     db.commit()
-    delete_stored_file(storage_key)
+    remove_attachment(storage_key, storage_backend)

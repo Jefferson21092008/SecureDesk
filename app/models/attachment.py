@@ -26,6 +26,7 @@ class Attachment(Base):
     )
     original_filename: Mapped[str] = mapped_column(String(255))
     storage_key: Mapped[str] = mapped_column(String(255), unique=True)
+    storage_backend: Mapped[str] = mapped_column(String(16), nullable=False, default="local", server_default="local")
     content_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(

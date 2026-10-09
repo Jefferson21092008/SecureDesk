@@ -32,6 +32,30 @@ services:
         value: /tmp/securedesk-attachments
       - key: ATTACHMENT_MAX_BYTES
         value: "5242880"
+      # Select s3 (Supabase) or r2 only after configuring a private bucket.
+      # Do not hardcode a value here: Blueprint sync must not reset it to local.
+      - key: ATTACHMENT_STORAGE_BACKEND
+        sync: false
+      # The four R2 settings below must be configured as Render secrets (never commit values).
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      # Supabase S3 settings. Set privately in Render only after local live tests.
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
       - key: INITIAL_ADMIN_EMAIL
         sync: false
       - key: INITIAL_ADMIN_PASSWORD

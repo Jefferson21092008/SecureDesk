@@ -28,6 +28,7 @@ def override_get_db():
 @pytest.fixture(autouse=True)
 def database(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(settings, "attachments_dir", str(tmp_path / "attachments"))
+    monkeypatch.setattr(settings, "attachment_storage_backend", "local")
     monkeypatch.setattr(settings, "attachment_max_bytes", 5 * 1024 * 1024)
     rate_limiter.reset()
     Base.metadata.create_all(bind=test_engine)
