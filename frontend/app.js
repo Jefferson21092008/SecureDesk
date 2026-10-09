@@ -6,6 +6,11 @@ const state = {
   token: sessionStorage.getItem(TOKEN_KEY),
   user: null,
   tickets: [],
+  recentTickets: [],
+  ticketPage: 1,
+  ticketPages: 1,
+  ticketTotal: 0,
+  selectedTicketId: null,
   departments: [],
   overview: null,
   sla: null,
@@ -23,6 +28,9 @@ const roleLabel = document.querySelector("#role-label");
 const sidebar = document.querySelector(".sidebar");
 const toast = document.querySelector("#toast");
 const ticketDialog = document.querySelector("#ticket-dialog");
+const detailDialog = document.querySelector("#ticket-detail-dialog");
+let ticketLoadSequence = 0;
+let detailLoadSequence = 0;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -45,6 +53,9 @@ function formatApiError(payload, fallback) {
 function clearSession(message = "") {
   state.token = null;
   state.user = null;
+  state.selectedTicketId = null;
+  detailLoadSequence += 1;
+  if (detailDialog.open) detailDialog.close();
   sessionStorage.removeItem(TOKEN_KEY);
   appView.classList.add("hidden");
   loginView.classList.remove("hidden");
@@ -56,10 +67,11 @@ function clearSession(message = "") {
 }
 
 async function apiRequest(path, options = {}) {
-  const { auth = true, headers = {}, ...fetchOptions } = options;
+  const { auth = true, headers = {}, responseType = "json", ...fetchOptions } = options;
   const requestHeaders = new Headers(headers);
   if (auth && state.token) requestHeaders.set("Authorization", `Bearer ${state.token}`);
-  if (fetchOptions.body && !(fetchOptions.body instanceof URLSearchParams) && !requestHeaders.has("Content-Type")) {
+  // Only JSON bodies get a JSON content type: FormData must keep its multipart boundary.
+  if (typeof fetchOptions.body === "string" && !requestHeaders.has("Content-Type")) {
     requestHeaders.set("Content-Type", "application/json");
   }
 
@@ -73,7 +85,10 @@ async function apiRequest(path, options = {}) {
   let payload = null;
   if (response.status !== 204) {
     const contentType = response.headers.get("content-type") || "";
-    payload = contentType.includes("application/json") ? await response.json() : await response.text();
+    payload = !response.ok
+      ? contentType.includes("application/json") ? await response.json() : await response.text()
+      : responseType === "blob" ? await response.blob()
+        : contentType.includes("application/json") ? await response.json() : await response.text();
   }
 
   if (!response.ok) {
@@ -116,23 +131,27 @@ function slaLabel(ticket) {
 }
 
 function ticketRow(ticket, recent = false) {
-  const base = `<td>#${ticket.id}</td><td class="ticket-title">${escapeHtml(ticket.title)}</td><td>${priorityBadge(ticket.priority)}</td><td>${statusBadge(ticket.status)}</td>`;
+  const title = `<button type="button" class="ticket-open-button" data-ticket-id="${ticket.id}" aria-label="Abrir chamado ${ticket.id}: ${escapeHtml(ticket.title)}">${escapeHtml(ticket.title)}</button>`;
+  const base = `<td>#${ticket.id}</td><td class="ticket-title">${title}</td><td>${priorityBadge(ticket.priority)}</td><td>${statusBadge(ticket.status)}</td>`;
   if (recent) return `<tr>${base}<td>${escapeHtml(agentName(ticket.assigned_agent_id))}</td><td>${escapeHtml(slaLabel(ticket))}</td></tr>`;
   return `<tr>${base}<td>${escapeHtml(departmentName(ticket.department_id))}</td><td>${escapeHtml(agentName(ticket.assigned_agent_id))}</td></tr>`;
 }
 
 function renderRecentTickets() {
   const target = document.querySelector("#recent-ticket-rows");
-  if (!state.tickets.length) {
+  if (!state.recentTickets.length) {
     target.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum chamado encontrado.</td></tr>';
     return;
   }
-  target.innerHTML = state.tickets.slice(0, 5).map((ticket) => ticketRow(ticket, true)).join("");
+  target.innerHTML = state.recentTickets.map((ticket) => ticketRow(ticket, true)).join("");
 }
 
 function renderTickets() {
   const target = document.querySelector("#ticket-rows");
-  document.querySelector("#ticket-count-label").textContent = `${state.tickets.length} chamado${state.tickets.length === 1 ? "" : "s"} encontrado${state.tickets.length === 1 ? "" : "s"}`;
+  document.querySelector("#ticket-count-label").textContent = `${state.ticketTotal} chamado${state.ticketTotal === 1 ? "" : "s"} encontrado${state.ticketTotal === 1 ? "" : "s"}`;
+  document.querySelector("#ticket-pagination-label").textContent = `Página ${state.ticketPage} de ${state.ticketPages}`;
+  document.querySelector("#ticket-prev-page").disabled = state.ticketPage <= 1;
+  document.querySelector("#ticket-next-page").disabled = state.ticketPage >= state.ticketPages;
   if (!state.tickets.length) {
     target.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum chamado corresponde aos filtros.</td></tr>';
     return;
@@ -260,7 +279,10 @@ async function loadDepartments() {
 }
 
 async function loadTickets() {
-  const params = new URLSearchParams({ page: "1", page_size: "100", sort_by: "created_at", sort_order: "desc" });
+  const sequence = ++ticketLoadSequence;
+  const params = new URLSearchParams({
+    page: String(state.ticketPage), page_size: "20", sort_by: "created_at", sort_order: "desc",
+  });
   const search = document.querySelector("#ticket-search").value.trim();
   const status = document.querySelector("#status-filter").value;
   const priority = document.querySelector("#priority-filter").value;
@@ -268,9 +290,27 @@ async function loadTickets() {
   if (status !== "ALL") params.set("status", status);
   if (priority !== "ALL") params.set("priority", priority);
   const page = await apiRequest(`/tickets?${params}`);
+  if (sequence !== ticketLoadSequence) return;
+  // Filters or deletions may reduce the total page count.
+  if (state.ticketPage > Math.max(1, page.pages)) {
+    state.ticketPage = Math.max(1, page.pages);
+    return loadTickets();
+  }
   state.tickets = page.items;
+  state.ticketTotal = page.total;
+  state.ticketPages = Math.max(1, page.pages);
   renderTickets();
-  if (!search && status === "ALL" && priority === "ALL") renderRecentTickets();
+}
+
+async function loadRecentTickets() {
+  const page = await apiRequest("/tickets?page=1&page_size=5&sort_by=created_at&sort_order=desc");
+  state.recentTickets = page.items;
+  renderRecentTickets();
+}
+
+function resetTicketPage() {
+  state.ticketPage = 1;
+  return loadTickets();
 }
 
 async function loadDashboard() {
@@ -318,8 +358,137 @@ async function loadUsersAndInvitations() {
     : '<tr><td colspan="4" class="empty-state">Nenhum convite.</td></tr>';
 }
 
+// Ticket operations reuse the backend contracts and never decide permissions on behalf of the API.
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function renderTicketDetail(ticket, comments, history, attachments, users) {
+  document.querySelector("#detail-title").textContent = `#${ticket.id} — ${ticket.title}`;
+  document.querySelector("#detail-description").textContent = ticket.description;
+  document.querySelector("#detail-status").innerHTML = statusBadge(ticket.status);
+  document.querySelector("#detail-priority").innerHTML = priorityBadge(ticket.priority);
+  document.querySelector("#detail-owner").textContent = `Usuário #${ticket.owner_id}`;
+  document.querySelector("#detail-department").textContent = departmentName(ticket.department_id);
+  document.querySelector("#detail-assignee").textContent = agentName(ticket.assigned_agent_id);
+  document.querySelector("#detail-sla").textContent = `${slaLabel(ticket)} · ${formatDate(ticket.sla_due_at)}`;
+  document.querySelector("#detail-created").textContent = formatDate(ticket.created_at);
+
+  document.querySelector("#detail-comments").innerHTML = comments.length
+    ? comments.map((c) => `<article class="detail-entry"><div class="detail-entry__meta">Usuário #${c.author_id} · ${escapeHtml(formatDate(c.created_at))}</div><p>${escapeHtml(c.content)}</p></article>`).join("")
+    : '<p class="muted">Nenhum comentário.</p>';
+  document.querySelector("#detail-history").innerHTML = history.length
+    ? history.map((h) => `<li><strong>${escapeHtml(h.action)}</strong> · ${escapeHtml(formatDate(h.created_at))}<span class="detail-history-description">${escapeHtml(h.field || "")} ${escapeHtml(h.old_value ?? "")} → ${escapeHtml(h.new_value ?? "")} · Usuário #${h.actor_id}</span></li>`).join("")
+    : '<li>Nenhuma movimentação registrada.</li>';
+  document.querySelector("#detail-attachments").innerHTML = attachments.length
+    ? attachments.map((a) => `<li><span>${escapeHtml(a.original_filename)} <small>(${Math.round(a.size_bytes / 1024)} KB)</small></span><button type="button" class="button button--ghost button--small" data-attachment-id="${a.id}" data-filename="${escapeHtml(a.original_filename)}">Baixar</button></li>`).join("")
+    : '<li>Sem anexos.</li>';
+
+  const staff = state.user?.role === "ADMIN" || state.user?.role === "AGENT";
+  document.querySelector("#detail-staff-actions").classList.toggle("hidden", !staff);
+  if (!staff) return;
+  const select = document.querySelector("#detail-agent-select");
+  const blockedByAnotherAgent = state.user.role === "AGENT" &&
+    ticket.assigned_agent_id !== null && ticket.assigned_agent_id !== state.user.id;
+  if (state.user.role === "ADMIN") {
+    select.innerHTML = '<option value="">Não atribuído</option>' + users.filter((u) => u.role === "AGENT")
+      .map((u) => `<option value="${u.id}">${escapeHtml(u.email)}</option>`).join("");
+  } else {
+    select.innerHTML = `<option value="">Não atribuído</option><option value="${state.user.id}">Atribuir a mim</option>`;
+  }
+  select.value = ticket.assigned_agent_id == null ? "" : String(ticket.assigned_agent_id);
+  select.disabled = blockedByAnotherAgent;
+  document.querySelector("#detail-assign-button").disabled = blockedByAnotherAgent;
+  const lifecycleButton = document.querySelector("#detail-lifecycle-button");
+  lifecycleButton.textContent = ticket.status === "CLOSED" ? "Reabrir chamado" : "Fechar chamado";
+  lifecycleButton.disabled = blockedByAnotherAgent;
+  document.querySelector("#detail-staff-note").textContent = blockedByAnotherAgent
+    ? "Este chamado já está atribuído a outro agente." : "Alterações são validadas pelo servidor.";
+}
+
+async function refreshTicketDetail() {
+  const ticketId = state.selectedTicketId;
+  if (!ticketId) return;
+  const sequence = ++detailLoadSequence;
+  const info = document.querySelector("#detail-loading");
+  info.textContent = "Carregando detalhes...";
+  try {
+    const [ticket, comments, history, attachments, users] = await Promise.all([
+      apiRequest(`/tickets/${ticketId}`),
+      apiRequest(`/tickets/${ticketId}/comments`),
+      apiRequest(`/tickets/${ticketId}/history`),
+      apiRequest(`/tickets/${ticketId}/attachments`),
+      state.user?.role === "ADMIN" ? apiRequest("/admin/users") : Promise.resolve([]),
+    ]);
+    if (sequence !== detailLoadSequence || state.selectedTicketId !== ticketId) return;
+    renderTicketDetail(ticket, comments, history, attachments, users);
+    info.textContent = "";
+  } catch (error) {
+    if (sequence !== detailLoadSequence) return;
+    info.textContent = `Não foi possível carregar o chamado: ${error.message}`;
+    throw error;
+  }
+}
+
+async function openTicketDetail(ticketId) {
+  if (!Number.isSafeInteger(ticketId) || ticketId < 1) return;
+  state.selectedTicketId = ticketId;
+  document.querySelector("#detail-title").textContent = `Chamado #${ticketId}`;
+  // Never show stale details from the previously selected ticket while loading.
+  for (const id of ["detail-description", "detail-comments", "detail-history", "detail-attachments",
+    "detail-status", "detail-priority", "detail-owner", "detail-department", "detail-assignee",
+    "detail-sla", "detail-created"]) {
+    document.getElementById(id).textContent = "";
+  }
+  document.querySelector("#detail-staff-actions").classList.add("hidden");
+  if (!detailDialog.open) detailDialog.showModal();
+  await refreshTicketDetail();
+}
+
+async function refreshAfterTicketAction(includeOverview = false) {
+  const tasks = [refreshTicketDetail()];
+  if (includeOverview) tasks.push(loadTickets(), loadRecentTickets(), loadDashboard(), loadMetrics());
+  await Promise.all(tasks);
+}
+
+async function submitTicketAction(button, operation, successMessage, includeOverview = false) {
+  if (!state.selectedTicketId || button.disabled) return false;
+  button.disabled = true;
+  let saved = false;
+  try {
+    await operation(state.selectedTicketId);
+    saved = true;
+    await refreshAfterTicketAction(includeOverview);
+    showToast(successMessage);
+    return true;
+  } catch (error) {
+    showToast(saved ? "Alteração salva, mas não foi possível atualizar a tela. Reabra o chamado." : error.message);
+    return saved;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function downloadTicketAttachment(ticketId, attachmentId, filename) {
+  // A normal href cannot include the bearer token and can bypass authorization.
+  const blob = await apiRequest(`/tickets/${ticketId}/attachments/${attachmentId}`, { responseType: "blob" });
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  } finally {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  }
+}
+
 async function loadApplication() {
-  await Promise.all([loadDepartments(), loadTickets(), loadDashboard(), loadMetrics()]);
+  await Promise.all([loadDepartments(), loadTickets(), loadRecentTickets(), loadDashboard(), loadMetrics()]);
   if (state.user?.role === "ADMIN") await Promise.all([loadAudit(), loadUsersAndInvitations()]);
 }
 
@@ -455,12 +624,22 @@ document.querySelectorAll(".nav-item").forEach((button) => button.addEventListen
 document.querySelectorAll("[data-go]").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.go)));
 document.querySelector("#menu-button").addEventListener("click", () => sidebar.classList.toggle("is-open"));
 
-document.querySelector("#status-filter").addEventListener("change", () => loadTickets().catch((error) => showToast(error.message)));
-document.querySelector("#priority-filter").addEventListener("change", () => loadTickets().catch((error) => showToast(error.message)));
+document.querySelector("#status-filter").addEventListener("change", () => resetTicketPage().catch((error) => showToast(error.message)));
+document.querySelector("#priority-filter").addEventListener("change", () => resetTicketPage().catch((error) => showToast(error.message)));
+document.querySelector("#ticket-prev-page").addEventListener("click", () => {
+  if (state.ticketPage <= 1) return;
+  state.ticketPage -= 1;
+  loadTickets().catch((error) => showToast(error.message));
+});
+document.querySelector("#ticket-next-page").addEventListener("click", () => {
+  if (state.ticketPage >= state.ticketPages) return;
+  state.ticketPage += 1;
+  loadTickets().catch((error) => showToast(error.message));
+});
 let searchTimer;
 document.querySelector("#ticket-search").addEventListener("input", () => {
   window.clearTimeout(searchTimer);
-  searchTimer = window.setTimeout(() => loadTickets().catch((error) => showToast(error.message)), 300);
+  searchTimer = window.setTimeout(() => resetTicketPage().catch((error) => showToast(error.message)), 300);
 });
 
 document.querySelectorAll("#metrics-date-from, #metrics-date-to").forEach((input) => input.addEventListener("change", () => loadMetrics().catch((error) => showToast(error.message))));
@@ -480,11 +659,83 @@ document.querySelector("#ticket-form").addEventListener("submit", async (event) 
     await apiRequest("/tickets", { method: "POST", body: JSON.stringify(payload) });
     ticketDialog.close();
     document.querySelector("#ticket-form").reset();
-    await Promise.all([loadTickets(), loadDashboard(), loadMetrics()]);
+    await Promise.all([resetTicketPage(), loadRecentTickets(), loadDashboard(), loadMetrics()]);
     showToast("Chamado criado com sucesso.");
   } catch (error) {
     showToast(error.message);
   }
+});
+
+// Use delegated events because ticket rows are rendered after every API refresh.
+for (const table of ["#ticket-rows", "#recent-ticket-rows"]) {
+  document.querySelector(table).addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-ticket-id]");
+    if (!button) return;
+    openTicketDetail(Number(button.dataset.ticketId)).catch((error) => showToast(error.message));
+  });
+}
+
+detailDialog.addEventListener("close", () => {
+  state.selectedTicketId = null;
+  detailLoadSequence += 1;
+});
+document.querySelector("#detail-close").addEventListener("click", () => detailDialog.close());
+
+document.querySelector("#detail-comment-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.querySelector("#detail-comment-submit");
+  const content = document.querySelector("#detail-comment-text").value.trim();
+  if (!content || !state.selectedTicketId || button.disabled) return;
+  const saved = await submitTicketAction(button, (id) => apiRequest(`/tickets/${id}/comments`, {
+    method: "POST", body: JSON.stringify({ content }),
+  }), "Comentário adicionado.");
+  if (saved) document.querySelector("#detail-comment-form").reset();
+});
+
+document.querySelector("#detail-upload-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.querySelector("#detail-upload-submit");
+  const file = document.querySelector("#detail-upload-file").files[0];
+  if (!file || !state.selectedTicketId || button.disabled) return;
+  const body = new FormData();
+  body.append("file", file);
+  button.disabled = true;
+  let uploaded = false;
+  try {
+    await apiRequest(`/tickets/${state.selectedTicketId}/attachments`, { method: "POST", body });
+    uploaded = true;
+    document.querySelector("#detail-upload-form").reset();
+    await refreshAfterTicketAction();
+    showToast("Arquivo anexado com sucesso.");
+  } catch (error) {
+    showToast(uploaded ? "Arquivo enviado, mas não foi possível atualizar a lista. Reabra o chamado." : error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#detail-attachments").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-attachment-id]");
+  if (!button || !state.selectedTicketId) return;
+  button.disabled = true;
+  downloadTicketAttachment(state.selectedTicketId, Number(button.dataset.attachmentId), button.dataset.filename)
+    .catch((error) => showToast(error.message)).finally(() => { button.disabled = false; });
+});
+
+document.querySelector("#detail-assign-button").addEventListener("click", () => {
+  const button = document.querySelector("#detail-assign-button");
+  const value = document.querySelector("#detail-agent-select").value;
+  submitTicketAction(button, (id) => apiRequest(`/tickets/${id}/assignment`, {
+    method: "PATCH", body: JSON.stringify({ agent_id: value ? Number(value) : null }),
+  }), "Responsável atualizado.", true);
+});
+
+document.querySelector("#detail-lifecycle-button").addEventListener("click", () => {
+  const button = document.querySelector("#detail-lifecycle-button");
+  const operation = button.textContent === "Reabrir chamado" ? "reopen" : "close";
+  submitTicketAction(button, (id) => apiRequest(`/tickets/${id}/${operation}`, {
+    method: "POST",
+  }), operation === "close" ? "Chamado fechado." : "Chamado reaberto.", true);
 });
 
 async function boot() {

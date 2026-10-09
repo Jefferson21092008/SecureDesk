@@ -95,7 +95,8 @@
 
           <section id="view-tickets" class="page-view hidden">
             <div class="toolbar"><div class="search-box"><span>⌕</span><input id="ticket-search" type="search" placeholder="Buscar chamados..." /></div><select id="status-filter"><option value="ALL">Todos os status</option><option value="OPEN">Aberto</option><option value="IN_PROGRESS">Em andamento</option><option value="CLOSED">Fechado</option></select><select id="priority-filter"><option value="ALL">Todas as prioridades</option><option value="HIGH">Alta</option><option value="MEDIUM">Média</option><option value="LOW">Baixa</option></select></div>
-            <article class="panel panel--table"><div class="panel-header"><div><h3>Chamados</h3><p id="ticket-count-label">6 chamados encontrados</p></div></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Título</th><th>Prioridade</th><th>Status</th><th>Departamento</th><th>Responsável</th></tr></thead><tbody id="ticket-rows"></tbody></table></div></article>
+            <article class="panel panel--table"><div class="panel-header"><div><h3>Chamados</h3><p id="ticket-count-label">Carregando chamados...</p></div></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Título</th><th>Prioridade</th><th>Status</th><th>Departamento</th><th>Responsável</th></tr></thead><tbody id="ticket-rows"></tbody></table></div></article>
+            <div class="pagination" aria-label="Paginação de chamados"><button type="button" id="ticket-prev-page" class="button button--ghost" disabled>Anterior</button><span id="ticket-pagination-label" role="status">Página 1 de 1</span><button type="button" id="ticket-next-page" class="button button--ghost" disabled>Próxima</button></div>
           </section>
 
           <section id="view-metrics" class="page-view hidden">
@@ -132,6 +133,38 @@
     </div>
 
     <dialog id="ticket-dialog" class="dialog"><form method="dialog" id="ticket-form" class="dialog-card"><div class="dialog-header"><div><p class="eyebrow">NOVO CHAMADO</p><h2>Abrir solicitação</h2></div><button class="icon-button" value="cancel" aria-label="Fechar">×</button></div><label><span>Título</span><input id="new-title" required minlength="3" maxlength="160" placeholder="Ex.: VPN indisponível" /></label><label><span>Descrição</span><textarea id="new-description" required minlength="3" maxlength="5000" placeholder="Descreva o problema e o impacto..."></textarea></label><div class="form-grid"><label><span>Prioridade</span><select id="new-priority"><option value="LOW">Baixa</option><option value="MEDIUM" selected>Média</option><option value="HIGH">Alta</option></select></label><label><span>Departamento</span><select id="new-department"><option value="">Sem departamento</option></select></label></div><div class="dialog-actions"><button class="button button--ghost" value="cancel">Cancelar</button><button class="button button--primary" value="default">Criar chamado</button></div></form></dialog>
+    <dialog id="ticket-detail-dialog" class="dialog dialog--detail" aria-labelledby="detail-title">
+      <div class="dialog-card">
+        <div class="dialog-header">
+          <div><p class="eyebrow">DETALHES DO ATENDIMENTO</p><h2 id="detail-title">Chamado</h2></div>
+          <button type="button" id="detail-close" class="icon-button" aria-label="Fechar detalhes">×</button>
+        </div>
+        <p id="detail-loading" class="muted" role="status" aria-live="polite"></p>
+        <div class="detail-badges"><span id="detail-status"></span><span id="detail-priority"></span></div>
+        <div class="detail-metadata">
+          <div><small>Solicitante</small><strong id="detail-owner">—</strong></div>
+          <div><small>Departamento</small><strong id="detail-department">—</strong></div>
+          <div><small>Responsável</small><strong id="detail-assignee">—</strong></div>
+          <div><small>SLA</small><strong id="detail-sla">—</strong></div>
+          <div><small>Criado em</small><strong id="detail-created">—</strong></div>
+        </div>
+        <section class="detail-section"><h3>Descrição</h3><p id="detail-description" class="detail-description"></p></section>
+        <section id="detail-staff-actions" class="detail-section hidden">
+          <h3>Gerenciar atendimento</h3>
+          <label><span>Agente responsável</span><select id="detail-agent-select"></select></label>
+          <div class="detail-actions"><button id="detail-assign-button" type="button" class="button button--ghost">Salvar atribuição</button><button id="detail-lifecycle-button" type="button" class="button button--primary">Fechar chamado</button></div>
+          <p id="detail-staff-note" class="muted detail-hint"></p>
+        </section>
+        <section class="detail-section"><h3>Comentários</h3><div id="detail-comments" class="detail-list"></div>
+          <form id="detail-comment-form" class="detail-form"><label><span>Novo comentário</span><textarea id="detail-comment-text" maxlength="5000" minlength="1" required placeholder="Adicione informações ao atendimento..."></textarea></label><button id="detail-comment-submit" class="button button--primary" type="submit">Comentar</button></form>
+        </section>
+        <section class="detail-section"><h3>Anexos</h3><ul id="detail-attachments" class="detail-attachment-list"></ul>
+          <form id="detail-upload-form" class="detail-form"><label><span>Adicionar arquivo</span><input id="detail-upload-file" type="file" required /></label><button id="detail-upload-submit" class="button button--ghost" type="submit">Anexar</button></form>
+          <p class="detail-hint muted">Formatos e tamanho máximo são verificados pela API. Em deploy gratuito, os anexos ainda não têm armazenamento persistente.</p>
+        </section>
+        <section class="detail-section"><h3>Histórico do chamado</h3><ol id="detail-history" class="detail-history"></ol></section>
+      </div>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="/app.js" defer></script>
   </body>
