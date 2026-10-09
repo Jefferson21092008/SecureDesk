@@ -144,3 +144,32 @@ def delete_stored_file(storage_key: str) -> bool:
         logger.warning("attachment_cleanup_failed storage_key=%r error_type=%s", storage_key, type(exc).__name__)
         return False
     return True
+
+
+def save_attachment(upload: UploadFile) -> tuple[str, str, str, int, str]:
+    """Store new objects using the configured backend; keep legacy files local."""
+    if settings.attachment_storage_backend == "s3":
+        from app.services.attachment_s3 import store_s3_upload
+
+        return (*store_s3_upload(upload), "s3")
+    if settings.attachment_storage_backend == "r2":
+        from app.services.attachment_r2 import store_r2_upload
+
+        return (*store_r2_upload(upload), "r2")
+    return (*store_upload(upload), "local")
+
+
+def remove_attachment(storage_key: str, backend: str) -> bool:
+    """Remove using the backend saved in the DB, NOT the current default."""
+    if backend == "local":
+        return delete_stored_file(storage_key)
+    if backend == "s3":
+        from app.services.attachment_s3 import delete_s3_file
+
+        return delete_s3_file(storage_key)
+    if backend == "r2":
+        from app.services.attachment_r2 import delete_r2_file
+
+        return delete_r2_file(storage_key)
+    logger.warning("attachment_unknown_storage_backend")
+    return False

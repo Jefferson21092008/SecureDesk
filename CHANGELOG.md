@@ -2,7 +2,19 @@
 
 Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 
-## [Unreleased] — Confiabilidade dos uploads (etapa 04)
+## [Unreleased]
+- Etapa 05 (complemento): backend `s3` para Supabase Storage privado, com região configurável,
+  endpoint `/storage/v1/s3`, testes e instruções sem chaves no repositório. — Armazenamento persistente de anexos (etapa 05)
+- Armazenamento de anexos em bucket privado Cloudflare R2, alternável por ambiente; armazenamento local preservado.
+- Coluna `storage_backend` em cada anexo, com migration `0014` e valor inicial `local` para arquivos antigos.
+- Upload, download e exclusão com backend explícito; nenhum acesso público ou URL pré-assinada.
+- Validação de configuração HTTPS do endpoint e credenciais R2; SDK com tempos de conexão limitados.
+- Testes de falhas de R2, permissões, persistência simulada e compatibilidade com anexos antigos.
+- A persistência real no Render precisa ser validada com bucket privado e credenciais configuradas.
+
+## [Unreleased]
+- Etapa 05 (complemento): backend `s3` para Supabase Storage privado, com região configurável,
+  endpoint `/storage/v1/s3`, testes e instruções sem chaves no repositório. — Confiabilidade dos uploads (etapa 04)
 - Gravação em arquivo temporário no mesmo volume, seguida de publicação atômica no nome definitivo.
 - Limpeza de arquivos parciais quando o upload falha, com resposta 503 em falhas de armazenamento.
 - Alertas de log quando a remoção de arquivos após commit não é concluída.
@@ -10,7 +22,9 @@ Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 - Testes de falha de gravação, publicação atômica e limpeza; guia de diagnóstico em `docs/ATTACHMENT_RELIABILITY.md`.
 - Sem novas dependências nem migrations; persistência durável de anexos permanece na etapa 05.
 
-## [Unreleased] — Observabilidade e diagnóstico (etapa 03)
+## [Unreleased]
+- Etapa 05 (complemento): backend `s3` para Supabase Storage privado, com região configurável,
+  endpoint `/storage/v1/s3`, testes e instruções sem chaves no repositório. — Observabilidade e diagnóstico (etapa 03)
 - Middleware com `X-Request-ID` UUID v4 gerado pelo servidor, inclusive para 429 e falhas 500.
 - Logs HTTP JSON com método, template seguro de rota, status, duração e ID para correlação.
 - Resposta genérica segura para exceções inesperadas, sem expor segredos ao cliente.
@@ -18,7 +32,9 @@ Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 - `docs/OBSERVABILITY.md` com procedimentos e limitações do diagnóstico.
 - Sem nova dependência, migration ou alteração do frontend.
 
-## [Unreleased] — Experiência e operação de chamados (etapa 02)
+## [Unreleased]
+- Etapa 05 (complemento): backend `s3` para Supabase Storage privado, com região configurável,
+  endpoint `/storage/v1/s3`, testes e instruções sem chaves no repositório. — Experiência e operação de chamados (etapa 02)
 - Interface de detalhes de chamados: status, prioridade, descrição, solicitante, atribuição, SLA e datas.
 - Comentários e histórico com acesso pelos endpoints existentes e conteúdo escapado no HTML.
 - Upload e download autenticado de anexos via API, com suporte a FormData e Blob.
@@ -27,7 +43,9 @@ Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 - Testes de contrato de frontend, instruções de teste manual e responsividade aprimorada.
 - Nenhuma nova migration ou dependência externa para a interface.
 
-## [Unreleased] — Gestão de usuários e convites (etapa 01)
+## [Unreleased]
+- Etapa 05 (complemento): backend `s3` para Supabase Storage privado, com região configurável,
+  endpoint `/storage/v1/s3`, testes e instruções sem chaves no repositório. — Gestão de usuários e convites (etapa 01)
 - Cadastro público desabilitado em produção, preservado para testes e desenvolvimento.
 - Convites administrativos de 48 horas com uso único, token armazenado somente como hash e reemissão que revoga o anterior.
 - Ativação de contas `USER` e `AGENT` e auditoria de emissão/aceitação.
