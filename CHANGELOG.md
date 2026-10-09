@@ -2,6 +2,15 @@
 
 Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 
+## [Unreleased] — Experiência e operação de chamados (etapa 02)
+- Interface de detalhes de chamados: status, prioridade, descrição, solicitante, atribuição, SLA e datas.
+- Comentários e histórico com acesso pelos endpoints existentes e conteúdo escapado no HTML.
+- Upload e download autenticado de anexos via API, com suporte a FormData e Blob.
+- Atribuição de agentes e fechamento/reabertura com ações condicionais à permissão e validação final da API.
+- Paginação real de chamados, navegação e filtros com proteção contra respostas assíncronas atrasadas.
+- Testes de contrato de frontend, instruções de teste manual e responsividade aprimorada.
+- Nenhuma nova migration ou dependência externa para a interface.
+
 ## [Unreleased] — Gestão de usuários e convites (etapa 01)
 - Cadastro público desabilitado em produção, preservado para testes e desenvolvimento.
 - Convites administrativos de 48 horas com uso único, token armazenado somente como hash e reemissão que revoga o anterior.
