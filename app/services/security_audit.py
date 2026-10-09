@@ -13,6 +13,8 @@ from app.models.security_audit import SecurityAuditLog
 
 class SecurityEventType(str, Enum):
     ACCOUNT_CREATED = "ACCOUNT_CREATED"
+    INVITATION_CREATED = "INVITATION_CREATED"
+    INVITATION_ACCEPTED = "INVITATION_ACCEPTED"
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
     LOGIN_FAILED = "LOGIN_FAILED"
     LOGOUT = "LOGOUT"

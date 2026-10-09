@@ -26,6 +26,8 @@ from app.db import get_db
 from app.models.revoked_token import RevokedToken
 from app.models.user import User, UserRole
 from app.schemas.auth import Token, UserCreate, UserRead
+from app.schemas.invitation import InvitationAccept
+from app.services.invitations import accept_invitation
 from app.services.security_audit import SecurityEventType, add_security_event
 
 router = APIRouter()
@@ -71,6 +73,8 @@ def _persist_auth_event(
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(request: Request, data: UserCreate, db: Session = Depends(get_db)) -> User:
+    if settings.app_env == "production":
+        raise HTTPException(status_code=403, detail="Public registration disabled")
     decision = rate_limiter.consume(
         key=f"auth:register:{client_ip(request)}",
         limit=settings.register_rate_limit_requests,
@@ -104,6 +108,41 @@ def register(request: Request, data: UserCreate, db: Session = Depends(get_db)) 
         actor_id=user.id,
         status_code=status.HTTP_201_CREATED,
         details={"role": user.role.value},
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/accept-invitation", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+def register_with_invitation(
+    request: Request,
+    data: InvitationAccept,
+    db: Session = Depends(get_db),
+) -> User:
+    decision = rate_limiter.consume(
+        key=f"auth:invitation:{client_ip(request)}",
+        limit=settings.register_rate_limit_requests,
+        window_seconds=settings.auth_rate_limit_window_seconds,
+    )
+    if not decision.allowed:
+        _persist_auth_event(
+            db,
+            request,
+            SecurityEventType.RATE_LIMIT_EXCEEDED,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details={"scope": "invitation_acceptance", "retry_after": decision.retry_after},
+        )
+        raise rate_limit_exception("Too many invitation attempts", decision)
+
+    user, invitation = accept_invitation(db, token=data.token, password=data.password)
+    add_security_event(
+        db,
+        request,
+        SecurityEventType.INVITATION_ACCEPTED,
+        actor_id=user.id,
+        status_code=status.HTTP_201_CREATED,
+        details={"invitation_id": invitation.id, "role": user.role.value},
     )
     db.commit()
     db.refresh(user)

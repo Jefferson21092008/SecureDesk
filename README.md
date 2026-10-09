@@ -17,6 +17,28 @@ O projeto simula um sistema corporativo de atendimento com autenticação, contr
 
 O ambiente publicado usa **Render + Neon Postgres**. Credenciais administrativas não ficam versionadas no repositório.
 
+### Gestão de usuários por convites (Etapa 01, em desenvolvimento)
+
+O SecureDesk funciona como uma aplicação de **uma empresa por instalação**.
+O administrador inicial é criado pelo bootstrap (`scripts/bootstrap_admin.py`).
+Em produção (`APP_ENV=production`), `POST /auth/register` está **desabilitado**:
+novos colaboradores são adicionados por convites de uso único.
+
+1. Administrador autenticado acessa **Usuários** e informa e-mail e perfil (`USER` ou `AGENT`).
+2. `POST /admin/invitations` devolve um token aleatório **uma única vez**.
+3. O administrador compartilha o link privado (com token no fragmento `#invite=...`), que expira após **48 horas**.
+4. O convidado define a própria senha, ativando a conta via `POST /auth/accept-invitation`.
+5. Convites usados, expirados ou substituídos não podem ser reaproveitados.
+
+**Segurança:** o banco armazena apenas SHA-256 do token, sem o código original.
+Não coloque links/tokens em issues, prints públicos, logs ou documentação.
+Não há envio automático de e-mail nesta etapa: o compartilhamento privado é manual.
+O cadastro livre permanece habilitado apenas em desenvolvimento/testes para compatibilidade.
+
+**Endpoints:** `GET /admin/users`, `GET /admin/invitations`, `POST /admin/invitations`,
+`POST /auth/accept-invitation`. Os endpoints `/admin/*` exigem papel `ADMIN`.
+A migration `0013_add_user_invitations` é necessária antes de usar a funcionalidade.
+
 ## Destaques
 
 - autenticação com JWT, expiração, `jti`, issuer/audience e revogação por sessão;

@@ -12,6 +12,7 @@ from app.api.lifecycle import router as lifecycle_router
 from app.api.metrics import router as metrics_router
 from app.api.security_audit import router as security_audit_router
 from app.api.tickets import router as tickets_router
+from app.api.user_management import router as user_management_router
 from app.core.config import settings
 from app.core.openapi import (
     API_DESCRIPTION,
@@ -106,6 +107,7 @@ async def enforce_api_rate_limit(request: Request, call_next):
 
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(user_management_router, prefix="/admin", tags=["User Management"])
 app.include_router(categories_router, prefix="/categories", tags=["Categories"])
 app.include_router(departments_router, prefix="/departments", tags=["Departments"])
 app.include_router(assignment_router, prefix="/tickets", tags=["Ticket Assignment"])

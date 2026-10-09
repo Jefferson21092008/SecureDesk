@@ -13,6 +13,8 @@ const state = {
 };
 
 const loginView = document.querySelector("#login-view");
+const invitationView = document.querySelector("#invitation-view");
+let currentInvitationToken = null;
 const appView = document.querySelector("#app-view");
 const loginForm = document.querySelector("#login-form");
 const loginButton = document.querySelector("#login-button");
@@ -46,6 +48,7 @@ function clearSession(message = "") {
   sessionStorage.removeItem(TOKEN_KEY);
   appView.classList.add("hidden");
   loginView.classList.remove("hidden");
+  invitationView.classList.add("hidden");
   if (message) {
     loginMessage.textContent = message;
     loginMessage.classList.add("is-error");
@@ -213,8 +216,8 @@ function updateUserUI() {
 }
 
 function navigate(viewName) {
-  if (viewName === "security" && state.user?.role !== "ADMIN") return;
-  const titles = { overview: ["OPERAÇÃO", "Visão geral"], tickets: ["ATENDIMENTO", "Chamados"], metrics: ["ANÁLISE", "Métricas"], security: ["SEGURANÇA", "Auditoria"] };
+  if (["security", "users"].includes(viewName) && state.user?.role !== "ADMIN") return;
+  const titles = { overview: ["OPERAÇÃO", "Visão geral"], tickets: ["ATENDIMENTO", "Chamados"], metrics: ["ANÁLISE", "Métricas"], security: ["SEGURANÇA", "Auditoria"], users: ["ADMINISTRAÇÃO", "Usuários"] };
   document.querySelectorAll(".page-view").forEach((view) => view.classList.add("hidden"));
   document.querySelector(`#view-${viewName}`)?.classList.remove("hidden");
   document.querySelectorAll(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.view === viewName));
@@ -298,9 +301,26 @@ async function loadAudit() {
   renderAudit(page.items);
 }
 
+async function loadUsersAndInvitations() {
+  if (state.user?.role !== "ADMIN") return;
+  const [users, invitations] = await Promise.all([
+    apiRequest("/admin/users"),
+    apiRequest("/admin/invitations"),
+  ]);
+  document.querySelector("#users-rows").innerHTML = users.length
+    ? users.map((user) => `<tr><td>${user.id}</td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(roleNames[user.role] || user.role)}</td></tr>`).join("")
+    : '<tr><td colspan="3" class="empty-state">Nenhuma conta.</td></tr>';
+  document.querySelector("#invitation-rows").innerHTML = invitations.length
+    ? invitations.map((invite) => {
+      const status = invite.accepted_at ? "Aceito" : invite.revoked_at ? "Substituído" : new Date(invite.expires_at).getTime() <= Date.now() ? "Expirado" : "Pendente";
+      return `<tr><td>${escapeHtml(invite.email)}</td><td>${escapeHtml(roleNames[invite.role] || invite.role)}</td><td>${escapeHtml(new Date(invite.expires_at).toLocaleString("pt-BR"))}</td><td>${status}</td></tr>`;
+    }).join("")
+    : '<tr><td colspan="4" class="empty-state">Nenhum convite.</td></tr>';
+}
+
 async function loadApplication() {
   await Promise.all([loadDepartments(), loadTickets(), loadDashboard(), loadMetrics()]);
-  if (state.user?.role === "ADMIN") await loadAudit();
+  if (state.user?.role === "ADMIN") await Promise.all([loadAudit(), loadUsersAndInvitations()]);
 }
 
 async function startAuthenticatedSession() {
@@ -311,6 +331,92 @@ async function startAuthenticatedSession() {
   navigate("overview");
   await loadApplication();
 }
+
+document.querySelector("#invite-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.querySelector("#invite-submit");
+  button.disabled = true;
+  document.querySelector("#invite-result").classList.add("hidden");
+  try {
+    const invite = await apiRequest("/admin/invitations", {
+      method: "POST",
+      body: JSON.stringify({
+        email: document.querySelector("#invite-email").value.trim(),
+        role: document.querySelector("#invite-role").value,
+      }),
+    });
+    document.querySelector("#invite-link").value = `${location.origin}${location.pathname}#invite=${encodeURIComponent(invite.token)}`;
+    document.querySelector("#invite-result").classList.remove("hidden");
+    document.querySelector("#invite-form").reset();
+    await loadUsersAndInvitations();
+    showToast("Convite gerado. Compartilhe o link com segurança.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelector("#copy-invite-link").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(document.querySelector("#invite-link").value);
+    showToast("Link copiado.");
+  } catch {
+    showToast("Não foi possível copiar automaticamente. Selecione o link para copiar.");
+  }
+});
+
+function openInvitationFromFragment() {
+  if (!location.hash.startsWith("#invite=")) return false;
+  const token = location.hash.slice("#invite=".length);
+  if (!token || token.length > 256) return false;
+  try {
+    currentInvitationToken = decodeURIComponent(token);
+  } catch {
+    return false;
+  }
+  // The URL fragment is not sent in HTTP requests, and we remove it from history.
+  history.replaceState(null, "", `${location.pathname}${location.search}`);
+  appView.classList.add("hidden");
+  loginView.classList.add("hidden");
+  invitationView.classList.remove("hidden");
+  return true;
+}
+
+document.querySelector("#invitation-accept-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const password = document.querySelector("#invitation-password").value;
+  const confirmation = document.querySelector("#invitation-password-confirm").value;
+  const message = document.querySelector("#invitation-message");
+  message.classList.remove("is-error");
+  if (password !== confirmation) {
+    message.textContent = "As senhas não coincidem.";
+    message.classList.add("is-error");
+    return;
+  }
+  try {
+    await apiRequest("/auth/accept-invitation", {
+      auth: false,
+      method: "POST",
+      body: JSON.stringify({ token: currentInvitationToken, password }),
+    });
+    currentInvitationToken = null;
+    document.querySelector("#invitation-accept-form").reset();
+    invitationView.classList.add("hidden");
+    loginView.classList.remove("hidden");
+    loginMessage.classList.remove("is-error");
+    loginMessage.textContent = "Conta ativada! Entre com o e-mail do seu convite.";
+  } catch (error) {
+    message.textContent = error.message;
+    message.classList.add("is-error");
+  }
+});
+
+document.querySelector("#back-to-login").addEventListener("click", () => {
+  currentInvitationToken = null;
+  invitationView.classList.add("hidden");
+  loginView.classList.remove("hidden");
+});
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -387,6 +493,7 @@ async function boot() {
   document.querySelector("#metrics-date-from").value = dateInputValue(firstDay);
   document.querySelector("#metrics-date-to").value = dateInputValue(today);
 
+  if (openInvitationFromFragment()) return;
   if (!state.token) return;
   try {
     await startAuthenticatedSession();

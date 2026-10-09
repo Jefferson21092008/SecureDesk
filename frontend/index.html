@@ -35,6 +35,28 @@
       </section>
     </main>
 
+    <main id="invitation-view" class="login-shell hidden">
+      <section class="login-brand" aria-label="Convite SecureDesk">
+        <div class="brand-mark brand-mark--large">SD</div>
+        <p class="eyebrow">CONVITE PRIVADO</p>
+        <h1>Bem-vindo à equipe.</h1>
+        <p class="login-copy">Escolha uma senha segura para ativar a conta que o administrador da sua empresa convidou.</p>
+      </section>
+      <section class="login-panel" aria-label="Ativação de conta">
+        <div class="login-card">
+          <h2>Ativar minha conta</h2>
+          <p class="muted">O convite é pessoal, expira após 48 horas e só pode ser utilizado uma vez.</p>
+          <form id="invitation-accept-form" class="form-stack">
+            <label><span>Senha</span><input id="invitation-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required /></label>
+            <label><span>Confirme sua senha</span><input id="invitation-password-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required /></label>
+            <button class="button button--primary" type="submit">Ativar conta</button>
+          </form>
+          <p id="invitation-message" class="login-footnote" role="status"></p>
+          <button id="back-to-login" class="button button--ghost" type="button">Voltar ao login</button>
+        </div>
+      </section>
+    </main>
+
     <div id="app-view" class="app-shell hidden">
       <aside class="sidebar" aria-label="Navegação principal">
         <div class="sidebar-brand"><div class="brand-mark">SD</div><div><strong>SecureDesk</strong><span>Service Desk</span></div></div>
@@ -42,6 +64,7 @@
           <button class="nav-item is-active" data-view="overview"><span class="nav-icon">◫</span><span>Visão geral</span></button>
           <button class="nav-item" data-view="tickets"><span class="nav-icon">▤</span><span>Chamados</span></button>
           <button class="nav-item" data-view="metrics"><span class="nav-icon">⌁</span><span>Métricas</span></button>
+          <button class="nav-item admin-only" data-view="users"><span class="nav-icon">♙</span><span>Usuários</span></button>
           <button class="nav-item admin-only" data-view="security"><span class="nav-icon">◇</span><span>Segurança</span></button>
         </nav>
         <div class="sidebar-footer"><div class="environment-pill"><span></span> SecureDesk v1.0.0</div><button id="logout-button" class="button button--ghost button--full">Sair</button></div>
@@ -79,6 +102,25 @@
             <div class="welcome-row"><div><h2>Métricas operacionais</h2><p class="muted">Visão consolidada para acompanhamento do serviço.</p></div><div class="period-controls"><input id="metrics-date-from" type="date" aria-label="Data inicial" /><span>até</span><input id="metrics-date-to" type="date" aria-label="Data final" /></div></div>
             <div class="metric-grid metric-grid--three"><article class="metric-card"><div class="metric-top"><span>SLA no prazo</span></div><strong id="metrics-on-track">—</strong><small>Tickets ativos dentro do prazo</small></article><article class="metric-card"><div class="metric-top"><span>SLA estourado</span></div><strong id="metrics-breached">—</strong><small>Requer atenção operacional</small></article><article class="metric-card"><div class="metric-top"><span>Fechados</span></div><strong id="metrics-closed">—</strong><small id="metrics-compliance">Compliance ainda não calculado</small></article></div>
             <div class="dashboard-grid"><article class="panel"><div class="panel-header"><div><h3>Por departamento</h3><p>Volume de chamados</p></div></div><div id="department-bars" class="rank-list"></div></article><article class="panel"><div class="panel-header"><div><h3>Por agente</h3><p>Chamados atribuídos</p></div></div><div id="agent-bars" class="rank-list"></div></article></div>
+          </section>
+
+          <section id="view-users" class="page-view hidden admin-only">
+            <div class="welcome-row"><div><h2>Usuários e convites</h2><p class="muted">Envie convites para funcionários e técnicos da sua empresa.</p></div><div class="security-badge">ADMIN ONLY</div></div>
+            <article class="panel">
+              <div class="panel-header"><h3>Convidar integrante</h3><p>O link será exibido uma única vez e deve ser compartilhado em canal privado.</p></div>
+              <form id="invite-form" class="form-grid">
+                <label><span>E-mail</span><input id="invite-email" type="email" autocomplete="off" required placeholder="pessoa@empresa.com" /></label>
+                <label><span>Perfil</span><select id="invite-role"><option value="USER">Usuário</option><option value="AGENT">Agente de TI</option></select></label>
+                <button id="invite-submit" class="button button--primary" type="submit">Gerar convite</button>
+              </form>
+              <div id="invite-result" class="hidden invitation-result">
+                <label><span>Link privado (válido por 48h)</span><input id="invite-link" readonly aria-label="Link de convite" /></label>
+                <button id="copy-invite-link" class="button button--ghost" type="button">Copiar link</button>
+                <p class="muted">Este link permite criar a conta. Não publique nem inclua em logs.</p>
+              </div>
+            </article>
+            <article class="panel panel--table"><div class="panel-header"><h3>Contas existentes</h3><p>Até 100 contas exibidas nesta versão.</p></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>E-mail</th><th>Perfil</th></tr></thead><tbody id="users-rows"></tbody></table></div></article>
+            <article class="panel panel--table"><div class="panel-header"><h3>Convites recentes</h3><p>Tokens não podem ser recuperados após a criação.</p></div><div class="table-wrap"><table><thead><tr><th>E-mail</th><th>Perfil</th><th>Expira em</th><th>Situação</th></tr></thead><tbody id="invitation-rows"></tbody></table></div></article>
           </section>
 
           <section id="view-security" class="page-view hidden admin-only">
