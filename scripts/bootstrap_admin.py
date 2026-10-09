@@ -36,7 +36,11 @@ def ensure_initial_admin(db: Session, *, email: str, password: str) -> User:
         )
         db.add(user)
     elif user.role != UserRole.ADMIN:
-        user.role = UserRole.ADMIN
+        # Never promote a previously registered account: its password might be
+        # controlled by somebody other than the deployment administrator.
+        raise InitialAdminConfigurationError(
+            "Initial admin email already belongs to a non-administrator account."
+        )
 
     db.commit()
     db.refresh(user)

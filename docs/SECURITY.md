@@ -188,6 +188,6 @@ Esses itens não são tratados como “invisíveis”; eles orientam as decisõe
 
 ## Bootstrap seguro de administrador
 
-No deploy, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` são usados apenas para criar ou promover o primeiro administrador. A validação dessas credenciais intercepta erros do Pydantic antes que o traceback seja emitido, porque a representação padrão de um `ValidationError` pode incluir o valor rejeitado. Em produção, falhas de política de senha retornam somente uma mensagem genérica e não ecoam a senha configurada.
+No deploy, `INITIAL_ADMIN_EMAIL` e `INITIAL_ADMIN_PASSWORD` são usados apenas para criar o administrador ou reconhecer uma conta administrativa existente; o script não promove contas comuns preexistentes. A validação dessas credenciais intercepta erros do Pydantic antes que o traceback seja emitido, porque a representação padrão de um `ValidationError` pode incluir o valor rejeitado. Em produção, falhas de política de senha retornam somente uma mensagem genérica e não ecoam a senha configurada.
 
 Depois do bootstrap inicial, as variáveis podem ser removidas do ambiente do serviço; a conta permanece persistida no PostgreSQL.

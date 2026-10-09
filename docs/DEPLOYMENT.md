@@ -54,7 +54,7 @@ uvicorn em 127.0.0.1:8000
 Nginx em $PORT
 ```
 
-O bootstrap é idempotente: cria o administrador somente quando necessário ou promove a conta informada para `ADMIN`. Ele nunca usa credenciais de demonstração.
+O bootstrap é idempotente: cria o administrador somente quando necessário e mantém uma conta `ADMIN` já existente. Por segurança, recusa promover uma conta comum preexistente, pois sua senha poderia ser controlada por terceiros. Ele nunca usa credenciais de demonstração.
 
 Depois do primeiro deploy bem-sucedido, remova `INITIAL_ADMIN_PASSWORD` e `INITIAL_ADMIN_EMAIL` das variáveis do serviço se você não quiser manter essas credenciais disponíveis no ambiente. A conta já permanece persistida no banco.
 

@@ -180,3 +180,7 @@ td.ticket-title { white-space: normal; min-width: 240px; font-weight: 650; }
 .button:disabled { opacity: .6; cursor: wait; transform: none; }
 .empty-state { text-align: center; color: var(--muted); padding: 1.4rem 1rem; }
 .rank-item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.invitation-result { margin-top: 1rem; display: grid; gap: .75rem; }
+.invitation-result p { margin: 0; font-size: .78rem; }
+#back-to-login { width: 100%; margin-top: .8rem; }

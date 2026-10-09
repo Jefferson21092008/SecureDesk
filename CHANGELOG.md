@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 
+## [Unreleased] — Gestão de usuários e convites (etapa 01)
+- Cadastro público desabilitado em produção, preservado para testes e desenvolvimento.
+- Convites administrativos de 48 horas com uso único, token armazenado somente como hash e reemissão que revoga o anterior.
+- Ativação de contas `USER` e `AGENT` e auditoria de emissão/aceitação.
+- Interface de administrador para emissão de convites e listagem de contas.
+- Bootstrap administrativo protegido contra promoção de conta comum preexistente.
+- Nova migration `0013_add_user_invitations` e testes focados.
+
 ## [1.0.0] — 2026-09-20
 
 Primeira release completa de portfólio do SecureDesk.
