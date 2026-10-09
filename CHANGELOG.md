@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 
+## [Unreleased] — Confiabilidade dos uploads (etapa 04)
+- Gravação em arquivo temporário no mesmo volume, seguida de publicação atômica no nome definitivo.
+- Limpeza de arquivos parciais quando o upload falha, com resposta 503 em falhas de armazenamento.
+- Alertas de log quando a remoção de arquivos após commit não é concluída.
+- Limites do proxy Nginx compatíveis com o máximo configurável da API, incluindo overhead multipart.
+- Testes de falha de gravação, publicação atômica e limpeza; guia de diagnóstico em `docs/ATTACHMENT_RELIABILITY.md`.
+- Sem novas dependências nem migrations; persistência durável de anexos permanece na etapa 05.
+
 ## [Unreleased] — Observabilidade e diagnóstico (etapa 03)
 - Middleware com `X-Request-ID` UUID v4 gerado pelo servidor, inclusive para 429 e falhas 500.
 - Logs HTTP JSON com método, template seguro de rota, status, duração e ID para correlação.

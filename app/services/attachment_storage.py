@@ -1,9 +1,14 @@
+import logging
+import os
+import tempfile
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 
 from app.core.config import settings
+
+logger = logging.getLogger("securedesk.attachments")
 
 CHUNK_SIZE = 1024 * 1024
 ALLOWED_ATTACHMENT_TYPES: dict[str, set[str]] = {
@@ -72,20 +77,35 @@ def _validate_content_signature(content_type: str, sample: bytes) -> None:
         )
 
 
-def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
-    original_filename, content_type = _validate_upload(upload)
-    extension = Path(original_filename).suffix.lower()
-    storage_key = f"{uuid4().hex}{extension}"
-    destination = attachment_path(storage_key)
-    size_bytes = 0
-
+def _remove_partial_upload(path: Path | None) -> None:
+    if path is None:
+        return
     try:
+        path.unlink(missing_ok=True)
+    except OSError as exc:
+        # Keep the original error; operators can inspect stale .upload-*.part files.
+        logger.warning("attachment_temp_cleanup_failed error_type=%s", type(exc).__name__)
+
+
+def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
+    temporary_path: Path | None = None
+    try:
+        original_filename, content_type = _validate_upload(upload)
+        extension = Path(original_filename).suffix.lower()
+        storage_key = f"{uuid4().hex}{extension}"
+        destination = attachment_path(storage_key)
+
         first_chunk = upload.file.read(CHUNK_SIZE)
         if not first_chunk:
             raise HTTPException(status_code=400, detail="Attachment cannot be empty")
         _validate_content_signature(content_type, first_chunk)
 
-        with destination.open("xb") as output:
+        size_bytes = 0
+        # Stage on the same filesystem, then publish only a completely written file.
+        with tempfile.NamedTemporaryFile(
+            mode="wb", prefix=".upload-", suffix=".part", dir=destination.parent, delete=False
+        ) as staged:
+            temporary_path = Path(staged.name)
             chunk = first_chunk
             while chunk:
                 size_bytes += len(chunk)
@@ -94,21 +114,33 @@ def store_upload(upload: UploadFile) -> tuple[str, str, str, int]:
                         status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                         detail="Attachment exceeds maximum allowed size",
                     )
-                output.write(chunk)
+                staged.write(chunk)
                 chunk = upload.file.read(CHUNK_SIZE)
+
+        # Complete the input cleanup before publishing the final file.
+        upload.file.close()
+        os.replace(temporary_path, destination)
+        return original_filename, storage_key, content_type, size_bytes
+    except OSError as exc:
+        _remove_partial_upload(temporary_path)
+        logger.warning("attachment_upload_storage_failed error_type=%s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Attachment storage temporarily unavailable") from exc
     except Exception:
-        destination.unlink(missing_ok=True)
+        _remove_partial_upload(temporary_path)
         raise
     finally:
         upload.file.close()
 
-    return original_filename, storage_key, content_type, size_bytes
 
+def delete_stored_file(storage_key: str) -> bool:
+    """Remove an attachment after database commit; report failures for manual cleanup.
 
-def delete_stored_file(storage_key: str) -> None:
+    A missing file is treated as already deleted. A failed deletion must not
+    invalidate an already committed database transaction.
+    """
     try:
         attachment_path(storage_key).unlink(missing_ok=True)
-    except (OSError, ValueError):
-        # Database state is authoritative. Storage cleanup can be retried separately
-        # if the local filesystem is unavailable or a stored key is malformed.
-        pass
+    except (OSError, ValueError) as exc:
+        logger.warning("attachment_cleanup_failed storage_key=%r error_type=%s", storage_key, type(exc).__name__)
+        return False
+    return True

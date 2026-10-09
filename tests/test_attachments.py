@@ -249,3 +249,46 @@ def test_deleting_ticket_removes_stored_attachment(client: TestClient, db: Sessi
 
     assert deleted.status_code == 204
     assert not stored_path.exists()
+
+
+def test_storage_failure_returns_503_without_adding_attachment(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    from app.services import attachment_storage
+
+    token = register_and_token(client, "attachment-storage-error@example.com")
+    ticket_id = create_ticket(client, token)
+
+    def fail_replace(_source, _destination):
+        raise OSError("simulated filesystem failure")
+
+    monkeypatch.setattr(attachment_storage.os, "replace", fail_replace)
+    response = upload_text(client, token, ticket_id)
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Attachment storage temporarily unavailable"
+    assert db.scalar(select(Attachment).where(Attachment.ticket_id == ticket_id)) is None
+    assert list(Path(settings.attachments_dir).iterdir()) == []
+
+
+def test_database_failure_after_file_promotion_removes_uploaded_file(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    from app.main import app
+
+    token = register_and_token(client, "attachment-rollback@example.com")
+    ticket_id = create_ticket(client, token)
+    original_flush = Session.flush
+
+    def fail_attachment_flush(self, objects=None):
+        if any(isinstance(pending, Attachment) for pending in self.new):
+            raise RuntimeError("simulated attachment database write failure")
+        return original_flush(self, objects)
+
+    monkeypatch.setattr(Session, "flush", fail_attachment_flush)
+    with TestClient(app, raise_server_exceptions=False) as safe_client:
+        response = upload_text(safe_client, token, ticket_id)
+
+    assert response.status_code == 500
+    assert db.scalar(select(Attachment).where(Attachment.ticket_id == ticket_id)) is None
+    assert list(Path(settings.attachments_dir).iterdir()) == []
