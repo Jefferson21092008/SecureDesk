@@ -10,6 +10,9 @@ server {
     add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self'" always;
 
     location /api/ {
+        # 25 MiB configured maximum attachment + multipart request overhead.
+        # The API still enforces ATTACHMENT_MAX_BYTES (5 MiB by default).
+        client_max_body_size 26m;
         proxy_pass http://127.0.0.1:8000/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
