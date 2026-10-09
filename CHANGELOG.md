@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes do SecureDesk são registradas neste arquivo.
 
+## [Unreleased] — Observabilidade e diagnóstico (etapa 03)
+- Middleware com `X-Request-ID` UUID v4 gerado pelo servidor, inclusive para 429 e falhas 500.
+- Logs HTTP JSON com método, template seguro de rota, status, duração e ID para correlação.
+- Resposta genérica segura para exceções inesperadas, sem expor segredos ao cliente.
+- Testes de requisições concorrentes, privacidade de logs, erros e rate limiting.
+- `docs/OBSERVABILITY.md` com procedimentos e limitações do diagnóstico.
+- Sem nova dependência, migration ou alteração do frontend.
+
 ## [Unreleased] — Experiência e operação de chamados (etapa 02)
 - Interface de detalhes de chamados: status, prioridade, descrição, solicitante, atribuição, SLA e datas.
 - Comentários e histórico com acesso pelos endpoints existentes e conteúdo escapado no HTML.

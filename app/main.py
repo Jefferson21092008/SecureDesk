@@ -1,3 +1,5 @@
+from time import perf_counter
+
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
@@ -14,6 +16,12 @@ from app.api.security_audit import router as security_audit_router
 from app.api.tickets import router as tickets_router
 from app.api.user_management import router as user_management_router
 from app.core.config import settings
+from app.core.observability import (
+    REQUEST_ID_HEADER,
+    log_http_request,
+    new_request_id,
+    reset_request_id,
+)
 from app.core.openapi import (
     API_DESCRIPTION,
     API_VERSION,
@@ -103,6 +111,40 @@ async def enforce_api_rate_limit(request: Request, call_next):
         response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
     if request.url.path.startswith(("/auth", "/security")):
         response.headers.setdefault("Cache-Control", "no-store")
+    return _apply_security_headers(response)
+
+
+@app.middleware("http")
+async def observe_http_requests(request: Request, call_next):
+    # Registered after the rate-limit middleware, therefore executes outside
+    # it: short-circuited 429 responses receive a request ID and a log entry.
+    token = new_request_id(request)
+    started_at = perf_counter()
+    try:
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            log_http_request(request, status_code=500, started_at=started_at, error=exc)
+            raise  # Preserve Starlette's normal unhandled-exception lifecycle.
+        response.headers[REQUEST_ID_HEADER] = request.state.request_id
+        log_http_request(request, status_code=response.status_code, started_at=started_at)
+        return response
+    finally:
+        reset_request_id(token)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_response(request: Request, _exc: Exception):
+    # This handler runs in ServerErrorMiddleware, outside application middleware.
+    # Include the same request ID on unexpected 500 responses, without leaking
+    # exception text or a traceback to clients.
+    request_id = getattr(request.state, "request_id", None)
+    headers = {REQUEST_ID_HEADER: request_id} if request_id else {}
+    response = JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+        headers=headers,
+    )
     return _apply_security_headers(response)
 
 
